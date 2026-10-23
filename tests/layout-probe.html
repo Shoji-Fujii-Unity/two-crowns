@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>layout probe</title>
+<style>
+  body{margin:0;background:#111;color:#ddd;font:12px/1.5 monospace}
+  iframe{border:0;display:block;background:#0b1220}
+</style>
+</head>
+<body>
+<pre id="out">pending</pre>
+<script>
+/* 実ブラウザのレイアウトで「盤面が上下UIと重ならないか／はみ出したらスクロールで届くか」を測る検証用ページ。
+   実行例（Chrome）:
+   chrome --headless=new --allow-file-access-from-files --window-size=430,900 \
+     --virtual-time-budget=8000 --dump-dom strategy-game/tests/layout-probe.html                     */
+var SIZES = [
+  [390, 844, 'iphone-portrait'],
+  [844, 390, 'iphone-landscape'],
+  [320, 568, 'small-phone'],
+  [360, 640, 'android-phone'],
+  [740, 360, 'tablet-landscape'],
+  [1280, 800, 'desktop']
+];
+var i = 0, lines = [];
+function rc(e) { var b = e.getBoundingClientRect(); return { t: Math.round(b.top), b: Math.round(b.bottom), l: Math.round(b.left), r: Math.round(b.right) }; }
+function overlap(a, b) { return a.b > b.t + 1 && b.b > a.t + 1 && a.r > b.l + 1 && b.r > a.l + 1; }
+
+function measure(label, size, f) {
+  var d = f.contentDocument, w = f.contentWindow;
+  var cell = parseFloat(w.getComputedStyle(d.documentElement).getPropertyValue('--cell'));
+  var wrap = d.getElementById('wrap'), board = d.getElementById('board');
+  var hud = d.getElementById('hud'), log = d.getElementById('log'), bar = d.getElementById('bar');
+  var hint = d.getElementById('scrollHint'), snd = d.getElementById('soundBtn');
+  if (!wrap || !board || !hint || !snd) throw new Error('_required id missing');
+  if (board.children.length !== 81) throw new Error('board cells=' + board.children.length);
+
+  var ww = rc(wrap), hw = rc(hud), lw = rc(log), bw = rc(bar);
+  var bad = [];
+  if (overlap(ww, hw)) bad.push('HUD');
+  if (overlap(ww, lw)) bad.push('LOG');
+  if (overlap(ww, bw)) bad.push('BAR');
+
+  var scY = wrap.scrollHeight - wrap.clientHeight;
+  var scX = wrap.scrollWidth - wrap.clientWidth;
+
+  // はみ出し分を最後までスクロールして盤面の下端まで届くか
+  wrap.scrollTop = 999999; wrap.scrollLeft = 999999;
+  var bb = rc(board);
+  var reach = (bb.b <= ww.b + 1 && bb.t >= ww.t - 1 && bb.r <= ww.r + 1 && bb.l >= ww.l - 1);
+  var hintOn = w.getComputedStyle(hint).display !== 'none';
+  var scrolling = /(^|\s)scrolling(\s|$)/.test(d.body.className);
+
+  return label + ' ' + size[0] + 'x' + size[1] +
+    ' | cell=' + cell +
+    ' | wrap=' + (ww.r - ww.l) + 'x' + (ww.b - ww.t) +
+    ' | overflowY=' + scY + ' overflowX=' + scX +
+    ' | overlap=' + (bad.length ? bad.join('+') : 'NONE') +
+    ' | scrollToEnd=' + (reach ? 'OK' : 'FAIL') +
+    ' | scrollingClass=' + (scrolling ? 'yes' : 'no') +
+    ' | hint=' + (hintOn ? 'on' : 'off') +
+    ' | soundBtn=' + JSON.stringify(snd.textContent) +
+    ' | hintLabel=' + JSON.stringify(hint.textContent.slice(0, 12));
+}
+
+function next() {
+  if (i >= SIZES.length) {
+    document.getElementById('out').textContent = 'PROBE-BEGIN\n' + lines.join('\n') + '\nPROBE-END';
+    return;
+  }
+  var size = SIZES[i++];
+  var f = document.createElement('iframe');
+  f.style.width = size[0] + 'px';
+  f.style.height = size[1] + 'px';
+  f.src = '../index.html';
+  f.onload = function () {
+    setTimeout(function () {
+      var line;
+      try { line = measure(size[2], size, f); }
+      catch (e) { line = size[2] + ' ERROR ' + e.message; }
+      lines.push(line);
+      if (f.parentNode) f.parentNode.removeChild(f);
+      next();
+    }, 400);
+  };
+  document.body.appendChild(f);
+}
+next();
+</script>
+</body>
+</html>

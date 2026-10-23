@@ -1,0 +1,1690 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>二王国の覇権 ― ターン制ストラテジー</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;-webkit-text-size-adjust:100%}
+body{
+  margin:0;background:#0b1220;color:#e6edf7;
+  font-family:"Hiragino Kaku Gothic ProN","Yu Gothic UI","Meiryo",system-ui,sans-serif;
+  display:flex;flex-direction:column;overflow:hidden;overscroll-behavior:none;
+  touch-action:manipulation;-webkit-user-select:none;user-select:none;
+}
+/* ---------- HUD ---------- */
+#hud{
+  display:flex;gap:6px;align-items:stretch;padding:6px 8px;
+  padding-top:calc(6px + env(safe-area-inset-top));
+  background:#0e1729;border-bottom:1px solid #1e2c46;flex:0 0 auto;
+}
+.side{flex:1 1 0;min-width:0;background:#131f36;border-radius:8px;padding:5px 7px;font-size:11px;line-height:1.35}
+.side.p{border-left:3px solid #3b82f6}
+.side.e{border-left:3px solid #ef4444}
+.side.active{background:#1c2c4b;box-shadow:0 0 0 1px #3f5b8a inset}
+.sname{font-weight:700;font-size:11px;letter-spacing:.04em;opacity:.9}
+.stats{display:flex;gap:8px;flex-wrap:wrap;margin-top:2px;color:#a9bcd8;font-variant-numeric:tabular-nums}
+.bar{height:5px;background:#0a1120;border-radius:3px;overflow:hidden;margin-top:4px}
+.bar>b{display:block;height:100%;background:#f0b429;border-radius:3px;transition:width .2s}
+.side.e .bar>b{background:#ef4444}
+.side.p .bar>b{background:#3b82f6}
+#mid{flex:0 0 auto;display:flex;flex-direction:column;gap:4px;align-items:center;justify-content:center;min-width:96px}
+#turnNo{font-size:12px;font-weight:700;color:#cbd8ec;white-space:nowrap}
+#phase{font-size:10px;color:#8fa5c4;white-space:nowrap}
+/* ---------- board ---------- */
+#wrapOuter{flex:1 1 auto;min-height:0;position:relative}
+#wrap{
+  position:absolute;inset:0;display:flex;overflow:auto;overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;padding:4px;scrollbar-width:thin;scrollbar-color:#3c5b88 transparent;
+}
+#wrap.fit{align-items:center;justify-content:center}
+#board{flex:0 0 auto;display:grid;gap:2px;padding:3px;background:#1c2942;border-radius:9px;box-shadow:0 6px 22px rgba(0,0,0,.45)}
+#wrap::-webkit-scrollbar{width:9px;height:9px}
+#wrap::-webkit-scrollbar-track{background:rgba(0,0,0,.22);border-radius:5px}
+#wrap::-webkit-scrollbar-thumb{background:#3c5b88;border-radius:5px;border:2px solid #0b1220}
+#scrollHint{
+  position:absolute;left:0;right:0;bottom:0;height:28px;display:none;align-items:flex-end;justify-content:center;
+  padding-bottom:4px;font-size:11px;font-weight:700;color:#d8e5f6;text-shadow:0 1px 3px #000;
+  background:linear-gradient(rgba(11,18,32,0),rgba(11,18,32,.82));pointer-events:none;
+}
+body.scrolling #scrollHint{display:flex}
+.cell{
+  position:relative;width:var(--cell,44px);height:var(--cell,44px);border-radius:3px;
+  background:#3a5240;display:flex;align-items:center;justify-content:center;cursor:pointer;
+}
+.cell.plain{background:#3a5240}
+.cell.forest{background:#26402d}
+.cell.mountain{background:#5b5346}
+.cell.water{background:#234d6b;cursor:default}
+.cell.village{background:#6f5d31}
+.cell.base{background:#4a4359}
+.cell.own-p{box-shadow:inset 0 0 0 1px #3b82f6}
+.cell.own-e{box-shadow:inset 0 0 0 1px #ef4444}
+.terr{position:absolute;top:0;left:2px;font-size:calc(var(--cell,44px)*.24);color:#fff;opacity:.42;pointer-events:none}
+.hl-move::after,.hl-hit::after{
+  content:"";position:absolute;inset:0;border-radius:3px;pointer-events:none;
+}
+.hl-move::after{box-shadow:inset 0 0 0 2px rgba(110,231,155,.95);background:rgba(110,231,155,.14)}
+.hl-hit::after{box-shadow:inset 0 0 0 2px rgba(251,191,36,.98);background:rgba(251,191,36,.16)}
+.cell.sel{outline:2px solid #fde68a;outline-offset:-2px;z-index:2}
+/* ---------- units ---------- */
+.chip{
+  position:absolute;inset:11%;border-radius:7px;display:flex;align-items:center;justify-content:center;
+  font-weight:800;font-size:calc(var(--cell,44px)*.42);color:#fff;line-height:1;
+  box-shadow:0 2px 4px rgba(0,0,0,.45);
+}
+.chip.p{background:linear-gradient(#2f6db3,#173c63);border:2px solid #74b0f5}
+.chip.e{background:linear-gradient(#c04141,#6d1f1f);border:2px solid #f58f8f}
+.chip.spent{filter:grayscale(.65);opacity:.6}
+.hpb{position:absolute;left:8%;right:8%;bottom:6%;height:12%;min-height:3px;background:#0a1120;border-radius:2px;overflow:hidden}
+.hpb>b{display:block;height:100%;background:#5eead4}
+.hpb>b.low{background:#fca5a5}
+.fx{
+  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-weight:800;font-size:calc(var(--cell,44px)*.36);color:#fff;text-shadow:0 0 6px #000,0 2px 2px #000;
+  pointer-events:none;animation:pop .6s ease-out forwards;z-index:5;
+}
+@keyframes pop{0%{transform:translateY(6px) scale(.7);opacity:0}25%{opacity:1}100%{transform:translateY(-14px) scale(1.15);opacity:0}}
+/* ---------- log ---------- */
+#log{
+  flex:0 0 auto;min-height:30px;padding:3px 10px;font-size:11px;color:#9fb3cf;
+  background:#0e1729;border-top:1px solid #1e2c46;display:flex;flex-direction:column;justify-content:center;gap:1px;
+}
+#log div:nth-child(2){opacity:.55}
+#log div:nth-child(3){opacity:.3}
+/* ---------- control bar ---------- */
+#bar{
+  flex:0 0 auto;display:flex;gap:6px;align-items:center;padding:6px 8px;flex-wrap:wrap;
+  padding-bottom:calc(6px + env(safe-area-inset-bottom));background:#0e1729;border-top:1px solid #1e2c46;
+}
+button{
+  font-family:inherit;font-size:13px;font-weight:700;color:#e6edf7;background:#243b5e;border:1px solid #3c5b88;
+  border-radius:8px;padding:9px 12px;cursor:pointer;min-height:40px;
+}
+button:active{transform:translateY(1px);background:#2f4c76}
+button[disabled]{opacity:.4;cursor:default;transform:none}
+button.mini{font-size:11px;font-weight:600;padding:8px 9px;min-height:36px;background:#18263c;border-color:#2a3d5c}
+#soundBtn{min-width:76px}
+#soundBtn.off{color:#8fa5c4;border-color:#23324a}
+button.big{background:#1d6b45;border-color:#35a06b;flex:0 0 auto}
+button.recruit{padding:8px 9px;min-height:40px;background:#18263c;border-color:#2a3d5c;font-weight:700;line-height:1.1}
+button.recruit b{display:block;font-size:15px}
+button.recruit span{font-size:10px;font-weight:600;color:#f0c674}
+button.recruit.on{background:#3f6d3a;border-color:#8fd07a;color:#fff}
+select{
+  font-family:inherit;font-size:11px;color:#cbd8ec;background:#18263c;border:1px solid #2a3d5c;
+  border-radius:8px;padding:8px 6px;min-height:36px;
+}
+.spacer{flex:1 1 auto}
+/* ---------- overlays ---------- */
+.overlay{
+  position:fixed;inset:0;background:rgba(4,9,18,.88);display:flex;align-items:center;justify-content:center;
+  padding:16px;z-index:20;overflow:auto;
+}
+.sheet{
+  max-width:460px;width:100%;background:#101c30;border:1px solid #2b4166;border-radius:14px;padding:16px 18px;
+  max-height:calc(100dvh - 32px);overflow:auto;
+}
+.sheet h2{margin:0 0 10px;font-size:17px}
+.sheet h3{margin:14px 0 6px;font-size:13px;color:#f0c674}
+.sheet p,.sheet li{font-size:12.5px;line-height:1.65;color:#c3d2e6;margin:4px 0}
+.sheet ul{margin:4px 0;padding-left:18px}
+table{width:100%;border-collapse:collapse;font-size:11.5px;margin-top:4px}
+th,td{padding:4px 3px;text-align:center;border-bottom:1px solid #1f3251}
+th{color:#8fa5c4;font-weight:600}
+.rowbtn{display:flex;gap:6px;margin-top:14px;flex-wrap:wrap}
+.rowbtn button{flex:1 1 120px}
+.hidden{display:none!important}
+#bigResult{font-size:26px;letter-spacing:.06em;margin-bottom:4px}
+/* ---------- 狭い画面 ---------- */
+@media (max-width:430px){
+  #mid{min-width:74px}
+  .side{padding:4px 5px;font-size:10px}
+  .stats{gap:5px}
+  #bar{gap:4px;padding:5px 5px calc(5px + env(safe-area-inset-bottom))}
+  button{font-size:12px;padding:8px 8px;min-height:38px;border-radius:7px}
+  button.recruit{padding:6px 7px}
+  button.recruit b{font-size:14px}
+  button.big{flex:1 1 84px;padding:8px 6px}
+  button.mini{font-size:10px;padding:7px 6px;min-height:34px}
+  select{font-size:10px;padding:7px 4px;min-height:34px}
+  #log{font-size:10px;min-height:26px;padding:2px 8px}
+}
+/* ---------- stage picker / save tag ---------- */
+#saveTag{font-size:10px;color:#7fe0a8;opacity:0;transition:opacity .3s;white-space:nowrap}
+#saveTag.on{opacity:.9}
+.stgrid{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+button.stcard{display:flex;gap:9px;align-items:center;text-align:left;width:100%;padding:9px 10px;min-height:52px;
+  background:#131f36;border:1px solid #2b4166;border-radius:10px;font-weight:600}
+button.stcard .num{flex:0 0 auto;width:22px;height:22px;border-radius:6px;background:#1d2f4c;display:flex;
+  align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#9db6d8}
+button.stcard .txt{flex:1 1 auto;min-width:0}
+button.stcard .nm{display:block;font-size:13px;font-weight:700;color:#e6edf7}
+button.stcard .ds{display:block;font-size:10.5px;font-weight:500;color:#8fa5c4;line-height:1.4;margin-top:2px}
+button.stcard .bd{flex:0 0 auto;font-size:10px;font-weight:700;color:#f0c674;white-space:nowrap;text-align:right}
+button.stcard[disabled]{opacity:.42}
+button.stcard.cur{border-color:#5aa9e6;box-shadow:0 0 0 1px #2c4f74 inset}
+.note{font-size:10.5px;color:#7f93b0;line-height:1.5;margin-top:10px}
+#helpBody h2{margin:0 0 10px;font-size:17px}
+#startInfo{font-size:12.5px;color:#c3d2e6;line-height:1.6}
+@media (max-width:430px){
+  #saveTag{display:none}
+  #newBtn{display:none}
+  #bar .mini{font-size:11px;padding:7px 8px}
+  #bar select{font-size:11px;padding:7px 4px}
+  button.stcard{padding:8px 8px;min-height:48px}
+  #soundBtn{min-width:54px}
+}
+/* ---------- 縦に短い画面（横持ちスマホなど） ---------- */
+@media (max-height:560px){
+  #hud{padding:3px 6px;padding-top:calc(3px + env(safe-area-inset-top))}
+  .side{padding:3px 5px}
+  .bar{height:4px;margin-top:3px}
+  #log{min-height:0;padding:1px 8px}
+  #bar{padding:4px 6px calc(4px + env(safe-area-inset-bottom))}
+  button{min-height:34px;padding:6px 8px}
+  button.mini,button.recruit{min-height:32px;padding:6px 7px}
+  select{min-height:32px}
+}
+</style>
+</head>
+<body>
+
+<header id="hud">
+  <div class="side p" id="hudP"></div>
+  <div id="mid">
+    <div id="turnNo">ターン 1</div>
+    <div id="phase">あなたの番</div>
+  </div>
+  <div class="side e" id="hudE"></div>
+</header>
+
+<div id="wrapOuter">
+  <div id="wrap"><div id="board" aria-label="盤面"></div></div>
+  <div id="scrollHint" data-i18n="scroll_hint">↕ 盤面をスライド</div>
+</div>
+
+<div id="log"></div>
+
+<div id="bar">
+  <div id="recruits" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+  <span class="spacer"></span>
+  <button class="big" id="endBtn" data-i18n="btn_end">ターン終了</button>
+  <button class="mini" id="undoBtn" data-i18n="btn_undo">戻す</button>
+  <button class="mini" id="stageBtn">ステージ</button>
+  <button class="mini" id="helpBtn" data-i18n="btn_help">ルール</button>
+  <select id="diffSel" title="難易度">
+    <option value="easy" data-i18n="diff_easy">やさしい</option>
+    <option value="normal" selected data-i18n="diff_normal">ふつう</option>
+    <option value="hard" data-i18n="diff_hard">むずかしい</option>
+  </select>
+  <select id="langSel" title="Language">
+    <option value="ja">日本語</option>
+    <option value="en">English</option>
+    <option value="zh">中文</option>
+  </select>
+  <button class="mini" id="soundBtn" aria-pressed="true">🔊 音</button>
+  <button class="mini" id="newBtn" data-i18n="btn_new">再開始</button>
+  <span id="saveTag"></span>
+</div>
+
+<div class="overlay hidden" id="helpOv">
+  <div class="sheet">
+    <div id="helpBody"></div>
+    <div class="rowbtn"><button id="closeHelp" data-i18n="btn_close">閉じる</button></div>
+  </div>
+</div>
+
+<div class="overlay hidden" id="overOv">
+  <div class="sheet" style="text-align:center">
+    <div id="bigResult"></div>
+    <p id="overMsg"></p>
+    <div class="rowbtn">
+      <button id="againBtn" data-i18n="btn_again">もう一度</button>
+      <button id="nextBtn" data-i18n="btn_next">次のステージ</button>
+      <button id="freshBtn" data-i18n="btn_fresh">同じ盤面で新しく</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay hidden" id="stageOv">
+  <div class="sheet">
+    <h2 data-i18n="stage_title">ステージ</h2>
+    <div id="stList" class="stgrid"></div>
+    <p class="note" id="saveNote"></p>
+    <div class="rowbtn">
+      <button class="mini" id="wipeBtn" data-i18n="btn_wipe">セーブデータを消去</button>
+      <button class="mini" id="closeStage" data-i18n="btn_close">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay hidden" id="startOv">
+  <div class="sheet" style="text-align:center">
+    <h2 data-i18n="start_title">セーブデータを発見</h2>
+    <p id="startInfo"></p>
+    <div class="rowbtn">
+      <button class="big" id="resumeBtn" data-i18n="btn_continue">つづける</button>
+      <button id="restartBtn" data-i18n="btn_newgame">はじめから</button>
+    </div>
+    <div class="rowbtn"><button class="mini" id="pickStageBtn" data-i18n="btn_pickstage">ステージを選ぶ</button></div>
+  </div>
+</div>
+
+<script>
+'use strict';
+/* ================= 多言語 ================= */
+var LANG='ja';
+var I18N={
+ja:{
+ app_title:'二王国の覇権 ― ターン制ストラテジー',
+ btn_end:'ターン終了', btn_undo:'戻す', btn_help:'ルール', btn_new:'再開始', btn_close:'閉じる',
+ btn_stage:'ステージ', btn_continue:'つづける', btn_newgame:'はじめから', btn_pickstage:'ステージを選ぶ', board_aria:'盤面',
+ snd_btn:'音', snd_on:'効果音：ON（タップでOFF）', snd_off:'効果音：OFF（タップでON）', scroll_hint:'↕ 盤面をスライド',
+ btn_again:'もう一度', btn_next:'次のステージ', btn_fresh:'同じ盤面で新しく', btn_wipe:'セーブデータを消去',
+ stage_title:'ステージ', start_title:'セーブデータを発見',
+ hud_you:'自軍（青）', hud_foe:'敵軍（赤）', sideP:'自軍', sideE:'敵軍',
+ k_coins:'資金', k_units:'兵', k_villages:'村', k_base:'本営',
+ turn_n:'ターン {n}', phase_you:'あなたの番', phase_enemy:'敵軍の番…', phase_over:'決着',
+ won:'勝 利', lost:'敗 北', over_line:'{reason}（{n} ターン）',
+ saved:'保存しました', wipe_done:'セーブを消去しました',
+ save_note:'進行状況はこの端末の中（ブラウザの保存領域）に自動保存されます。ネットワークには送信しません。',
+ start_info:'{stage}／{turn}ターン目', locked:'未開放', cleared:'クリア済み', best:'最短 {n} ターン',
+ now:'進行中', locked_note:'前のステージに勝つと次のステージが解禁されます。',
+ diff_easy:'やさしい', diff_normal:'ふつう', diff_hard:'むずかしい',
+ u_ho:'歩兵', u_yu:'弓兵', u_ki:'騎兵', u_ya:'槍兵',
+ ug_ho:'歩', ug_yu:'弓', ug_ki:'騎', ug_ya:'槍',
+ tg_forest:'森', tg_mountain:'山', tg_water:'河', tg_village:'村', tg_base:'本',
+ th_unit:'兵科', th_cost:'費用', th_move:'移動', th_range:'射程', th_atk:'攻撃', th_hp:'HP',
+ st_skirmish:'ランダム戦', d_skirmish:'毎回かわる自動生成マップ',
+ st_bridge:'二つの橋', d_bridge:'河を挟んで橋が2つ',
+ st_maze:'森の迷路', d_maze:'森が多く守りが有利',
+ st_pass:'山の峠', d_pass:'山岳が騎兵を分断する',
+ st_granary:'穀倉地帯', d_granary:'村が多く資金勝負',
+ st_canyon:'峡谷', d_canyon:'狭い回廊の接近戦',
+ st_coast:'沿岸の道', d_coast:'本営は盤面の左端',
+ log_start:'戦闘開始。敵本営を攻略せよ。',
+ log_income:'{side}の収入 +{inc}（資金 {coins}）',
+ log_undo:'一手戻した',
+ log_base_fall:'{w}が{l}本営を落とした',
+ log_elim:'{l}は戦える兵をすべて失った',
+ log_hit:'{a}の{au} → {d}の{du} に {dmg} ダメージ',
+ log_kill:'{d}の{du}を撃破！',
+ log_counter:'反撃 {dmg} ダメージ',
+ log_died:'{s}の{u}が撃破された',
+ log_basehit:'{s}の{u}が{foe}本営を攻撃（-{dmg} / 残 {left}）',
+ log_capture:'{u}が村を占領した（{s}）',
+ log_summon:'{u}を配置した（残り資金 {coins}）',
+ log_summon_foe:'{s}が{u}を配置',
+ log_nocoins:'資金が足りない（{u}に{cost}必要）',
+ log_cap:'兵数が上限です',
+ help_html:'<h2>遊び方</h2><p>9&times;9の盤面で青軍（あなた）と赤軍（CPU）が争うターン制ストラテジーです。</p><h3>勝利条件</h3><ul><li>敵の<b>本営</b>を破壊する。敵本営の隣接マスから攻撃できます。13ターン目から本営へのダメージが2倍、25ターン目から3倍…と増えていくので、長引けば必ず決着します。30ターン目以降は<b>兵へのダメージ</b>も少しずつ増えていきます（最大約3.5倍）ので、膠着状態が続けば消耗戦に決着が寄っていきます。</li><li>または、敵が兵を1つも持たず、新たに調達する資金もない状態にする。</li></ul><h3>1ターンの流れ</h3><ul><li>開始時に<b>資金</b>が入ります（本営＋5、村1つにつき＋2、8ターンごとに＋1）。自軍の村・本営にいる兵はHPが3回復します。</li><li>兵は1ターンに「移動→攻撃」または「攻撃のみ」が可能。同じ兵は1回だけ動けます。</li><li><b>採用</b>で自軍の本営マス・その隣接マス、または占領済みの村に新しい兵を配置（配置したターンは動けません）。騎兵は山に置けません。</li></ul><h3>兵科</h3>{units}<p>騎兵は歩兵に強いが<b>槍兵にとても弱い</b>。槍兵は騎兵に強く、弓兵は歩兵に強い、という三すくみです。弓兵は遠隔攻撃で反撃を受けません。</p><p>隣接して攻撃すると、生き残った相手から<b>同じ強さの反撃</b>を受けます。有利な地形で撃ち返すのが定石です。</p><h3>地形</h3><ul><li>森（移動コスト2・防御+2）、山（コスト3・防御+3・騎兵は入れない）、河は渡れません。</li><li>村は勝利条件に数えられず、主に<b>収入源</b>。兵が乗ると自軍の村になります。</li></ul><h3>難易度</h3><ul><li><b>やさしい</b>：敵軍の資金が少なく、時々うっかり手を打ちます。</li><li><b>ふつう</b>：敵軍はやや潤沢な資金で、たまに失敗します。</li><li><b>むずかしい</b>：敵軍の資金は自軍の約1.6倍。ミスをせず、本営への迂回も狙ってきます。</li></ul><h3>ステージと保存</h3><ul><li>「ステージ」で盤面を選べます。あるステージに勝つと次のステージが解禁されます。</li><li>進行状況は<b>この端末の中（ブラウザの保存領域）</b>に自動保存されます。ネットワークには送信しません。</li></ul><h3>操作</h3><ul><li>兵をタップ→緑マスへ移動、黄色マスへ攻撃。もう一度その兵をタップで解除。</li><li>キーボード：スペース=ターン終了 / U=戻す / Esc=解除。</li><li>画面が小さいときは盤面を指でスライドして、隠れた行まで見られます。</li><li>効果が不要なときは画面下の「音」ボタンで OFF にできます（設定は保存されます）。</li></ul>'
+},
+en:{
+ app_title:'Two Crowns ― Turn-Based Tactics',
+ btn_end:'End turn', btn_undo:'Undo', btn_help:'Rules', btn_new:'Restart', btn_close:'Close',
+ btn_stage:'Stages', btn_continue:'Continue', btn_newgame:'Start over', btn_pickstage:'Choose a stage', board_aria:'Game board',
+ snd_btn:'Sound', snd_on:'Sound effects: on (tap to mute)', snd_off:'Sound effects: off (tap to unmute)', scroll_hint:'Swipe to scroll the board',
+ btn_again:'Play again', btn_next:'Next stage', btn_fresh:'New game here', btn_wipe:'Delete saved game',
+ stage_title:'Stages', start_title:'Saved game found',
+ hud_you:'Your army (blue)', hud_foe:'Enemy (red)', sideP:'Your', sideE:'Enemy',
+ k_coins:'Coin', k_units:'Units', k_villages:'Villages', k_base:'Base',
+ turn_n:'Turn {n}', phase_you:'Your turn', phase_enemy:'Enemy thinking…', phase_over:'Over',
+ won:'VICTORY', lost:'DEFEAT', over_line:'{reason} ({n} turns)',
+ saved:'Saved', wipe_done:'Saved game deleted',
+ save_note:'Progress is saved automatically in this browser on this device. Nothing is sent over the network.',
+ start_info:'{stage} / turn {turn}', locked:'Locked', cleared:'Cleared', best:'Best {n} turns',
+ now:'In progress', locked_note:'Win a stage to unlock the next one.',
+ diff_easy:'Easy', diff_normal:'Normal', diff_hard:'Hard',
+ u_ho:'Infantry', u_yu:'Archer', u_ki:'Cavalry', u_ya:'Spearmen',
+ ug_ho:'I', ug_yu:'A', ug_ki:'C', ug_ya:'S',
+ tg_forest:'F', tg_mountain:'M', tg_water:'~', tg_village:'V', tg_base:'B',
+ th_unit:'Unit', th_cost:'Cost', th_move:'Move', th_range:'Range', th_atk:'Atk', th_hp:'HP',
+ st_skirmish:'Random map', d_skirmish:'A new map every game',
+ st_bridge:'Two bridges', d_bridge:'A river with two crossings',
+ st_maze:'Forest maze', d_maze:'Many forests favour defenders',
+ st_pass:'Mountain pass', d_pass:'Ridges block cavalry',
+ st_granary:'Granary fields', d_granary:'Many villages, rich income',
+ st_canyon:'The canyon', d_canyon:'Narrow corridors, close fight',
+ st_coast:'Coastal road', d_coast:'Both bases sit on the left edge',
+ log_start:'Battle begins. Take the enemy base.',
+ log_income:'{side} gains +{inc} coin (total {coins})',
+ log_undo:'One move undone',
+ log_base_fall:'{w} destroyed the base of {l}',
+ log_elim:'{l} has no units left to fight',
+ log_hit:'{au} of {a} hits {du} of {d} for {dmg}',
+ log_kill:'{du} of {d} destroyed!',
+ log_counter:'Counterattack {dmg}',
+ log_died:'{u} of {s} was destroyed',
+ log_basehit:'{u} of {s} strikes the {foe} base (-{dmg}, {left} left)',
+ log_capture:'{u} captured a village for {s}',
+ log_summon:'You deploy {u} (coin left {coins})',
+ log_summon_foe:'{s} deploys a {u}',
+ log_nocoins:'Not enough coin for {u} (needs {cost})',
+ log_cap:'Army is at full size',
+ help_html:'<h2>How to play</h2><p>A turn-based tactics duel on a 9 by 9 map: your blue army against the red CPU army.</p><h3>Winning</h3><ul><li>Destroy the enemy <b>base</b>. You may attack it from any tile next to it. Damage dealt to a base doubles from turn 13 and triples from turn 25, so long games always reach a decision. From turn 30 damage to units also grows slowly (up to about 3.5x), so a stalled front line turns into a war of attrition.</li><li>Or leave the enemy with no units and too little coin to recruit one.</li></ul><h3>Each turn</h3><ul><li>Income arrives first (base +5, +2 per village you own, +1 every 8 turns). Units standing on your own village or base heal 3 HP.</li><li>A unit may move then attack, or attack only. Each unit acts once per turn.</li><li><b>Recruit</b> puts a fresh unit on your base tile, a tile next to it, or a village you own (it cannot act the turn it arrives). Cavalry cannot be placed on mountains.</li></ul><h3>Units</h3>{units}<p>Cavalry rides down infantry but is torn apart by <b>spears</b>. Spears beat cavalry, archers beat infantry. Ranged attacks draw no counterattack.</p><p>Attack a neighbour and the survivor hits back with <b>full strength</b>, so favour good terrain.</p><h3>Terrain</h3><ul><li>Forest: move cost 2, defence +2. Mountain: cost 3, defence +3, cavalry cannot enter. Rivers cannot be crossed.</li><li>Villages are income. A unit standing on one claims it for its side.</li></ul><h3>Difficulty</h3><ul><li><b>Easy</b>: the CPU is short of coin and often makes careless moves.</li><li><b>Normal</b>: the CPU has somewhat more coin and slips now and then.</li><li><b>Hard</b>: the CPU earns about 1.6 times your base income, never blunders and will try to flank toward your base.</li></ul><h3>Stages and saving</h3><ul><li>Open <b>Stages</b> to pick a map. Win a stage to unlock the next one.</li><li>Progress is saved automatically <b>in this browser on this device</b>. Nothing is sent anywhere.</li></ul><h3>Controls</h3><ul><li>Tap a unit, then a green tile to move or a yellow tile to attack. Tap the unit again to cancel.</li><li>Keyboard: Space = end turn, U = undo, Esc = cancel.</li><li>On a small screen you can swipe the board to reach the rows hidden behind the bars.</li><li>Use the Sound button on the bottom bar to mute the sound effects. The setting is remembered.</li></ul>'
+},
+zh:{
+ app_title:'双雄争霸 ― 回合制策略',
+ btn_end:'结束回合', btn_undo:'撤销', btn_help:'规则', btn_new:'重新开始', btn_close:'关闭',
+ btn_stage:'关卡', btn_continue:'继续', btn_newgame:'重新开始', btn_pickstage:'选择关卡', board_aria:'游戏棋盘',
+ snd_btn:'音效', snd_on:'音效：开（点击关闭）', snd_off:'音效：关（点击开启）', scroll_hint:'↕ 滑动查看棋盘',
+ btn_again:'再来一局', btn_next:'下一关', btn_fresh:'本关新开', btn_wipe:'删除存档',
+ stage_title:'关卡', start_title:'发现存档',
+ hud_you:'我方（蓝）', hud_foe:'敌军（红）', sideP:'我方', sideE:'敌军',
+ k_coins:'资金', k_units:'兵力', k_villages:'村庄', k_base:'本营',
+ turn_n:'第 {n} 回合', phase_you:'你的回合', phase_enemy:'敌军行动中…', phase_over:'战斗结束',
+ won:'胜 利', lost:'失 败', over_line:'{reason}（{n} 回合）',
+ saved:'已保存', wipe_done:'存档已删除',
+ save_note:'进度会自动保存在本机的浏览器存储区，不会发送到网络。',
+ start_info:'{stage}／第 {turn} 回合', locked:'未解锁', cleared:'已通关', best:'最快 {n} 回合',
+ now:'进行中', locked_note:'通过上一关即可解锁下一关。',
+ diff_easy:'简单', diff_normal:'普通', diff_hard:'困难',
+ u_ho:'步兵', u_yu:'弓兵', u_ki:'骑兵', u_ya:'枪兵',
+ ug_ho:'步', ug_yu:'弓', ug_ki:'骑', ug_ya:'枪',
+ tg_forest:'林', tg_mountain:'山', tg_water:'河', tg_village:'村', tg_base:'营',
+ th_unit:'兵种', th_cost:'费用', th_move:'移动', th_range:'射程', th_atk:'攻击', th_hp:'HP',
+ st_skirmish:'随机战场', d_skirmish:'每局自动生成地图',
+ st_bridge:'双桥', d_bridge:'隔河相望，两座桥',
+ st_maze:'森林迷阵', d_maze:'森林密布利于防守',
+ st_pass:'山道隘口', d_pass:'山脉阻断骑兵',
+ st_granary:'谷仓地带', d_granary:'村落众多拼经济',
+ st_canyon:'峡谷', d_canyon:'狭窄走廊近战',
+ st_coast:'海岸通道', d_coast:'本营位于盘面左缘',
+ log_start:'战斗开始：攻陷敌方本营。',
+ log_income:'{side}收入 +{inc}（资金 {coins}）',
+ log_undo:'已撤销一步',
+ log_base_fall:'{w}攻陷了{l}的本营',
+ log_elim:'{l}已无可作战的兵力',
+ log_hit:'{a}的{au} 对 {d}的{du} 造成 {dmg} 伤害',
+ log_kill:'击溃{d}的{du}！',
+ log_counter:'反击造成 {dmg} 点伤害',
+ log_died:'{s}的{u}被击溃',
+ log_basehit:'{s}的{u} 攻击{foe}本营（-{dmg}／剩余 {left}）',
+ log_capture:'{u}占领了村庄（{s}）',
+ log_summon:'部署{u}（剩余资金 {coins}）',
+ log_summon_foe:'{s}部署了{u}',
+ log_nocoins:'资金不足（{u}需要 {cost}）',
+ log_cap:'兵力已达上限',
+ help_html:'<h2>玩法说明</h2><p>9&times;9 战场上的回合制策略对战：蓝军（你）对抗红军（电脑）。</p><h3>胜利条件</h3><ul><li>摧毁敌方<b>本营</b>。可从紧邻本营的格子发起攻击。第13回合起对本营的伤害翻倍，第25回合起三倍，因此战局必定会结束。第30回合起，<b>对兵种的伤害</b>也会逐渐提高（最多约3.5倍），僵持越久消耗战越激烈。</li><li>或者让敌方既无兵力，又没有足够的资金招募。</li></ul><h3>每回合流程</h3><ul><li>回合开始时获得<b>资金</b>（本营 +5，己方每个村庄 +2，每 8 回合再 +1）。位于己方村庄或本营的兵种回复 3 点 HP。</li><li>每个兵种每回合可「移动后攻击」或「仅攻击」，且只能行动一次。</li><li><b>招募</b>可把新兵放在本营格、其相邻格或已占领的村庄（放置当回合不能行动）。骑兵不能放在山地。</li></ul><h3>兵种</h3>{units}<p>骑兵克制步兵，但<b>极怕枪兵</b>；枪兵克骑兵，弓兵克步兵。远程攻击不会遭到反击。</p><p>近战攻击后，存活的目标会以<b>全额火力</b>反击，因此请善用地形。</p><h3>地形</h3><ul><li>森林：移动消耗 2、防御 +2。山地：消耗 3、防御 +3、骑兵不可进入。河流无法渡过。</li><li>村庄是收入来源，兵种站上去即归己方所有。</li></ul><h3>难度</h3><ul><li><b>简单</b>：电脑资金较少，且常走出失误的招。</li><li><b>普通</b>：电脑资金较为充裕，偶尔失误。</li><li><b>困难</b>：电脑基础资金约为你方的 1.6 倍，不会失误，并会迂回突袭你的本营。</li></ul><h3>关卡与存档</h3><ul><li>点击「关卡」选择地图，通关后解锁下一关。</li><li>进度会自动保存在<b>本机浏览器</b>的存储区，不会发送到网络。</li></ul><h3>操作</h3><ul><li>点击兵种，再点绿色格移动、黄色格攻击；再次点击该兵种即取消。</li><li>键盘：空格＝结束回合，U＝撤销，Esc＝取消。</li><li>屏幕较小时可滑动棋盘，查看被上下工具条遮住的行。</li><li>不需要音效时，点击下方「音效」按钮即可关闭（设置会被保存）。</li></ul>'
+}
+};
+var SIDE_KEYS={a:1,d:1,s:1,foe:1,side:1,l:1,w:1}, UNIT_KEYS={au:1,du:1,u:1};
+function t(k,p){
+  var L=I18N[LANG]||I18N.ja, s=L[k];
+  if(s===undefined) s=I18N.ja[k];
+  if(s===undefined) return k;
+  if(p){
+    var q={};
+    for(var kk in p){
+      var v=p[kk];
+      if(SIDE_KEYS[kk]&&(v===P||v===E)) v=sideName(v);            // 兵側コードは表示時に解決
+      else if(UNIT_KEYS[kk]&&TYPES[v]) v=uname(v);                // 兵科コードも同じ
+      q[kk]=v;
+    }
+    s=s.replace(/\{(\w+)\}/g,function(m,n){ return (q[n]===undefined||q[n]===null)?m:''+q[n]; });
+  }
+  return s;
+}
+function uname(k){ return t('u_'+k); }
+function uglyph(k){ return t('ug_'+k); }
+function tglyph(terr){ return TERRAIN[terr].glyph? t('tg_'+terr) : ''; }
+function diffLabel(d){ return t('diff_'+d); }
+function stageName(k){ return t('st_'+k); }
+function unitTable(){
+  var h='<table><tr>';
+  ['th_unit','th_cost','th_move','th_range','th_atk','th_hp'].forEach(function(k){ h+='<th>'+t(k)+'</th>'; });
+  h+='</tr>';
+  ['ho','yu','ki','ya'].forEach(function(k){
+    var T=TYPES[k];
+    h+='<tr><td>'+uname(k)+'</td><td>'+T.cost+'</td><td>'+T.move+'</td><td>'+T.range+'</td><td>'+T.atk+'</td><td>'+T.hp+'</td></tr>';
+  });
+  return h+'</table>';
+}
+function helpHtml(){ return t('help_html').split('{units}').join(unitTable()); }
+function detectLang(){
+  if(PROF.lang&&I18N[PROF.lang]) return PROF.lang;
+  var nav=(typeof navigator!=='undefined'&&(navigator.language||navigator.userLanguage))||'ja';
+  nav=(''+nav).toLowerCase();
+  if(nav.indexOf('zh')===0) return 'zh';
+  if(nav.indexOf('ja')===0) return 'ja';
+  return 'en';
+}
+
+/* ================= ステージ ================= */
+var SPAWN_TYPES=['ho','ho','ya','yu','ho','ki'];
+var STAGES=[
+  {key:'skirmish', rand:true},
+  {key:'bridge',   half:["....B....","..v...v..",".f.ooo.f.","..f...f..","~~v.~.v~~"]},
+  {key:'maze',     half:["....B....","..o...o..","....o....","..f...f..","v..f.f..v"]},
+  {key:'pass',     half:["....B....","..m...m..",".oommmmo.","..f...f..","mm..v..mm"]},
+  {key:'granary',  half:["....B....",".v.....v.","..o.o.o..","...v.v...","....v...."], cap:10},
+  {key:'canyon',   half:["....B....","..v...v..",".o..o..o.","m..mmm..m","....f...."], cap:6},
+  {key:'coast',    half:[".B.......",".oo...v..",".o.f..v..","..~~..~~.",".f..v..f."], baseHp:40}
+];
+function stageDef(id){ for(var i=0;i<STAGES.length;i++){ if(STAGES[i].key===id) return STAGES[i]; } return null; }
+function stageIndex(id){ for(var i=0;i<STAGES.length;i++){ if(STAGES[i].key===id) return i; } return 0; }
+function stageUnlocked(i){ if(i<=0) return true; return !!PROF.cleared[STAGES[i-1].key]; }
+
+var DEF_BASE={p:{x:4,y:8},e:{x:4,y:0}};
+var DEF_SPAWN={p:[{x:3,y:6,t:'ho'},{x:5,y:6,t:'ho'},{x:4,y:6,t:'ya'}],
+               e:[{x:3,y:2,t:'ho'},{x:5,y:2,t:'ho'},{x:4,y:2,t:'ya'}]};
+var BASE_HP_DEF=48;
+var DIR8=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,1],[1,-1],[-1,-1]];
+
+function copySpawns(list){
+  var out=[];
+  for(var i=0;i<list.length;i++) out.push({x:list[i].x,y:list[i].y,t:list[i].t});
+  return out;
+}
+// 盤面・本営位置・初期配置・本営HP・兵数上限を作る（大域変数はここで更新する）
+function buildStage(def){
+  def=def||STAGES[0];
+  BASE_HP=def.baseHp||BASE_HP_DEF;
+  UNIT_CAP=def.cap||8;
+  var tiles=[],i,x,y;
+  if(def.rand){
+    BASE_POS={p:{x:DEF_BASE.p.x,y:DEF_BASE.p.y},e:{x:DEF_BASE.e.x,y:DEF_BASE.e.y}};
+    SPAWN={p:copySpawns(DEF_SPAWN.p),e:copySpawns(DEF_SPAWN.e)};
+    return genMap();
+  }
+  for(y=0;y<ROWS;y++){ tiles.push([]); for(x=0;x<COLS;x++) tiles[y].push({t:'plain',owner:null}); }
+  var baseP=null, baseE=null, marks=[];
+  for(y=0;y<5;y++){
+    var row=def.half[y]||'';
+    for(x=0;x<COLS;x++){
+      var c=row.charAt(x)||'.';
+      var terr=(c==='f')?'forest':((c==='m')?'mountain':((c==='~')?'water':((c==='v')?'village':'plain')));
+      tiles[y][x].t=terr; tiles[ROWS-1-y][x].t=terr;      // 上側だけ作り、下側は鏡像
+      if(y<4){
+        if(c==='B'){ baseE={x:x,y:y}; baseP={x:x,y:ROWS-1-y}; }
+        else if(c==='o'||c==='p'||c==='e'){ marks.push({x:x,y:y}); }
+      }
+    }
+  }
+  if(!baseE){ baseE={x:4,y:0}; baseP={x:4,y:ROWS-1}; }
+  BASE_POS={p:baseP,e:baseE};
+  tiles[baseE.y][baseE.x].t='base'; tiles[baseE.y][baseE.x].owner=E;
+  tiles[baseP.y][baseP.x].t='base'; tiles[baseP.y][baseP.x].owner=P;
+  // 本営の8近傍は徴兵と進軍のため整地する（村は残す）
+  for(i=0;i<DIR8.length;i++){
+    var sides=[baseE,baseP];
+    for(var k=0;k<2;k++){
+      var nx=sides[k].x+DIR8[i][0], ny=sides[k].y+DIR8[i][1];
+      if(nx<0||ny<0||nx>=COLS||ny>=ROWS) continue;
+      var tt=tiles[ny][nx];
+      if(tt.t==='village'||tt.t==='base') continue;
+      tt.t='plain';
+    }
+  }
+  marks.sort(function(a,b){ return (a.y-b.y)||(a.x-b.x); });
+  SPAWN={p:[],e:[]};
+  for(i=0;i<marks.length;i++){
+    var ty=SPAWN_TYPES[i%SPAWN_TYPES.length];
+    SPAWN.e.push({x:marks[i].x,y:marks[i].y,t:ty});
+    SPAWN.p.push({x:marks[i].x,y:ROWS-1-marks[i].y,t:ty});
+  }
+  if(!SPAWN.p.length){          // マーカーが無いステージは本営の正面に配置
+    for(var s2=0;s2<2;s2++){
+      var side=s2===0?P:E, dy=(side===P)?-1:1;
+      for(var q=0;q<3;q++){
+        var bx=BASE_POS[side].x+(q-1), by=BASE_POS[side].y+dy;
+        if(bx<0||bx>=COLS||by<0||by>=ROWS) continue;
+        var tb=tiles[by][bx];
+        if(tb.t==='water'||tb.t==='base') continue;
+        tb.t='plain';
+        SPAWN[side].push({x:bx,y:by,t:SPAWN_TYPES[q]});
+      }
+    }
+  }
+  // 初期配置マスは必ずその兵が置ける地形にする
+  var ps=[P,E];
+  for(var m=0;m<2;m++){
+    var list=SPAWN[ps[m]];
+    for(i=0;i<list.length;i++){
+      var sp=list[i], tl=tiles[sp.y][sp.x];
+      if(tl.t==='water'||tl.t==='base'||(tl.t==='mountain'&&TYPES[sp.t].noMountain)) tl.t='plain';
+    }
+  }
+  return tiles;
+}
+
+/* ================= ローカル保存 ================= */
+var LS_G='tactics9.game.v1', LS_P='tactics9.profile.v1';
+function lsGet(k){ try{ if(typeof localStorage==='undefined'||!localStorage) return null; return localStorage.getItem(k); }catch(e){ return null; } }
+function lsSet(k,v){ try{ if(typeof localStorage==='undefined'||!localStorage) return false; localStorage.setItem(k,v); return true; }catch(e){ return false; } }
+function lsDel(k){ try{ if(typeof localStorage!=='undefined'&&localStorage) localStorage.removeItem(k); }catch(e){} }
+
+var PROF={v:1,cleared:{},best:{},lang:null,diff:'normal',stage:'skirmish',wins:0,losses:0,sound:true};
+function loadProfile(){
+  var raw=lsGet(LS_P);
+  if(!raw) return PROF;
+  try{
+    var d=JSON.parse(raw);
+    if(d&&d.v===1){
+      PROF.cleared=d.cleared||{}; PROF.best=d.best||{}; PROF.lang=d.lang||null;
+      PROF.diff=(d.diff==='easy'||d.diff==='hard')?d.diff:'normal';
+      if(stageDef(d.stage)) PROF.stage=d.stage;
+      PROF.wins=d.wins|0; PROF.losses=d.losses|0;
+      PROF.sound=(d.sound!==false);
+    }
+  }catch(e){}
+  return PROF;
+}
+function saveProfile(){ lsSet(LS_P,JSON.stringify(PROF)); }
+function saveGame(silent){
+  if(!S||S.over) return false;
+  var blob={v:1,lang:LANG,stage:S.stage,diff:S.diff,turn:S.turn,phase:S.phase,nextId:S.nextId,over:S.over,
+            coins:S.coins,baseHp:S.baseHp,units:S.units,tiles:S.tiles,log:S.log,ts:Date.now()};
+  var ok=lsSet(LS_G,JSON.stringify(blob));
+  if(ok&&!silent) flashSaved();
+  return ok;
+}
+function loadSave(){
+  var raw=lsGet(LS_G);
+  if(!raw) return null;
+  try{
+    var d=JSON.parse(raw);
+    if(!d||d.v!==1||!d.tiles||!d.units||!d.coins||!d.baseHp) return null;
+    if(!stageDef(d.stage)) return null;
+    return d;
+  }catch(e){ return null; }
+}
+function resumeSave(d){
+  if(!d) return false;
+  buildStage(stageDef(d.stage));                 // 大域値をステージに合わせる
+  S={diff:(d.diff==='easy'||d.diff==='hard')?d.diff:'normal', stage:d.stage,
+     turn:d.turn||1, phase:P,
+     coins:{p:d.coins.p|0,e:d.coins.e|0}, baseHp:{p:d.baseHp.p,e:d.baseHp.e},
+     tiles:d.tiles, units:d.units, nextId:d.nextId||1,
+     sel:null, summon:null,
+     log:(d.log&&d.log.length)?d.log:[{k:'log_start'}],
+     undo:[], over:d.over||null, fx:null, busy:false};
+  S.units.forEach(function(u){ u.moved=false; u.acted=false; });
+  closeOverlay('startOv'); closeOverlay('overOv');
+  var ds=document.getElementById('diffSel'); if(ds) ds.value=S.diff;
+  render(); fit();
+  return true;
+}
+function wipeSave(){
+  lsDel(LS_G);
+  PROF.cleared={}; PROF.best={}; PROF.wins=0; PROF.losses=0;
+  saveProfile();
+  renderStages(); toastSaved(t('wipe_done'));
+}
+var savedTimer=null;
+function toastSaved(text){
+  var el=document.getElementById('saveTag');
+  if(!el) return;
+  el.textContent=text; el.className='on';
+  if(savedTimer) clearTimeout(savedTimer);
+  savedTimer=setTimeout(function(){ el.className=''; savedTimer=null; },1600);
+}
+function flashSaved(){ toastSaved(t('saved')); }
+
+/* ================= 定数 ================= */
+var COLS=9, ROWS=9, UNIT_CAP=8, BASE_HP=48, START_COINS=8, COUNTER=1.0;
+var P='p', E='e';
+var TERRAIN={
+  plain:{name:'平野',cost:1,def:0,glyph:''},
+  forest:{name:'森',cost:2,def:2,glyph:'森'},
+  mountain:{name:'山',cost:3,def:3,glyph:'山'},
+  water:{name:'河',cost:Infinity,def:0,glyph:'河'},
+  village:{name:'村',cost:1,def:1,glyph:'村'},
+  base:{name:'本営',cost:1,def:2,glyph:'本'}
+};
+var TYPES={
+  ho:{key:'ho',name:'歩兵',glyph:'歩',cost:2,move:3,range:1,atk:6,hp:20},
+  yu:{key:'yu',name:'弓兵',glyph:'弓',cost:3,move:2,range:2,atk:7,hp:16},
+  ki:{key:'ki',name:'騎兵',glyph:'騎',cost:5,move:4,range:1,atk:9,hp:26,noMountain:true},
+  ya:{key:'ya',name:'槍兵',glyph:'槍',cost:4,move:3,range:1,atk:8,hp:34}
+};
+var CNT={
+  ho:{ho:1.00,yu:1.00,ki:0.75,ya:0.85},
+  yu:{ho:1.25,yu:1.00,ki:0.80,ya:0.85},
+  ki:{ho:1.35,yu:1.20,ki:1.00,ya:0.50},
+  ya:{ho:1.00,yu:1.20,ki:1.60,ya:1.00}
+};
+var DIFF={
+  easy:{foeIncome:3,noise:0.9,blunder:0.45,label:'やさしい'},
+  normal:{foeIncome:6,noise:0.25,blunder:0.12,label:'ふつう'},
+  hard:{foeIncome:8,noise:0.0,blunder:0.0,label:'むずかしい'}
+};
+var BASE_POS={p:{x:4,y:8},e:{x:4,y:0}};
+var SPAWN={
+  p:[{x:3,y:6,t:'ho'},{x:5,y:6,t:'ho'},{x:4,y:6,t:'ya'}],
+  e:[{x:3,y:2,t:'ho'},{x:5,y:2,t:'ho'},{x:4,y:2,t:'ya'}]
+};
+
+/* ================= サウンド ================= */
+/* 外部ファイル不要の WebAudio 合成音。音源コンテキストは最初の操作で作る（ブラウザ制約対策）。 */
+var AC=null;
+var SND={on:true};
+function audioCtx(){
+  if(!SND.on) return null;
+  if(AC) return AC;
+  try{
+    var W=(typeof window!=='undefined')?window:null;
+    var C=W&&(W.AudioContext||W.webkitAudioContext);
+    if(!C) return null;
+    AC=new C();
+  }catch(e){ AC=null; }
+  return AC;
+}
+function unlockAudio(){
+  var c=audioCtx();
+  if(c&&c.state==='suspended'&&c.resume){ try{ c.resume(); }catch(e){} }
+}
+function tone(o){
+  var c=audioCtx(); if(!c) return;
+  try{
+    var t0=c.currentTime+(o.at||0), d=o.d||0.1;
+    var osc=c.createOscillator(), g=c.createGain();
+    osc.type=o.type||'square';
+    osc.frequency.setValueAtTime(o.f,t0);
+    if(o.f2) osc.frequency.exponentialRampToValueAtTime(Math.max(24,o.f2),t0+d);
+    g.gain.setValueAtTime(0.0001,t0);
+    g.gain.exponentialRampToValueAtTime(o.g||0.05,t0+0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001,t0+d);
+    osc.connect(g); g.connect(c.destination);
+    osc.start(t0); osc.stop(t0+d+0.02);
+  }catch(e){}
+}
+function noise(o){
+  var c=audioCtx(); if(!c||!c.createBuffer) return;
+  try{
+    var d=o.d||0.12, n=Math.max(1,Math.floor((c.sampleRate||44100)*d)), i;
+    var buf=c.createBuffer(1,n,c.sampleRate), ch=buf.getChannelData(0);
+    for(i=0;i<n;i++) ch[i]=(Math.random()*2-1)*(1-i/n);
+    var src=c.createBufferSource(); src.buffer=buf;
+    var f=c.createBiquadFilter(); f.type=o.hp?'highpass':'lowpass'; f.frequency.value=o.cut||900;
+    var g=c.createGain(); g.gain.value=o.g||0.05;
+    src.connect(f); f.connect(g); g.connect(c.destination);
+    src.start(c.currentTime+(o.at||0));
+  }catch(e){}
+}
+var SFX={
+  ui:function(){ tone({f:520,d:0.05,type:'triangle',g:0.03}); },
+  sel:function(){ tone({f:660,f2:900,d:0.07,g:0.05}); },
+  unsel:function(){ tone({f:520,f2:380,d:0.06,g:0.03}); },
+  move:function(){ tone({f:250,f2:180,d:0.09,type:'sine',g:0.05}); noise({d:0.05,g:0.02,cut:600}); },
+  summon:function(){ tone({f:420,f2:740,d:0.12,type:'triangle',g:0.05}); },
+  atk:function(){ tone({f:820,f2:220,d:0.1,type:'sawtooth',g:0.045}); noise({d:0.07,g:0.04,cut:1600,hp:1}); },
+  hit:function(){ noise({d:0.12,g:0.05,cut:700}); tone({f:150,f2:90,d:0.11,type:'square',g:0.035}); },
+  counter:function(){ tone({f:600,f2:340,d:0.08,type:'triangle',g:0.03}); },
+  kill:function(){ tone({f:300,f2:80,d:0.26,type:'sawtooth',g:0.05}); noise({d:0.18,g:0.045,cut:520}); },
+  base:function(){ tone({f:120,f2:62,d:0.32,type:'square',g:0.065}); noise({d:0.24,g:0.055,cut:420}); },
+  turn:function(){ tone({f:560,d:0.09,type:'sine',g:0.04}); tone({f:760,d:0.11,type:'sine',g:0.038,at:0.1}); },
+  turnE:function(){ tone({f:300,d:0.1,type:'sine',g:0.04}); tone({f:238,d:0.12,type:'sine',g:0.034,at:0.1}); },
+  err:function(){ tone({f:180,d:0.09,type:'square',g:0.04}); tone({f:148,d:0.09,type:'square',g:0.036,at:0.09}); },
+  win:function(){ [523,659,784,1047].forEach(function(f,i){ tone({f:f,d:0.17,type:'triangle',g:0.055,at:i*0.12}); }); },
+  lose:function(){ [440,392,311,233].forEach(function(f,i){ tone({f:f,d:0.22,type:'sine',g:0.055,at:i*0.15}); }); }
+};
+function sfx(name){
+  if(!SND.on) return;
+  var f=SFX[name];
+  if(f){ try{ f(); }catch(e){} }
+}
+function soundLabel(){
+  var b=document.getElementById('soundBtn'); if(!b) return;
+  b.textContent=(SND.on?'🔊 ':'🔇 ')+t('snd_btn');
+  b.title=t(SND.on?'snd_on':'snd_off');
+  if(b.classList&&b.classList.toggle) b.classList.toggle('off',!SND.on);
+  if(b.setAttribute) b.setAttribute('aria-pressed',SND.on?'true':'false');
+}
+function setSound(on,remember){
+  SND.on=!!on;
+  if(remember!==false){ PROF.sound=SND.on; saveProfile(); }
+  soundLabel();
+  if(SND.on){
+    unlockAudio();
+    if(remember!==false) sfx('ui');   // ON にした瞬間に鳴らして確認できる
+  }
+}
+
+/* ================= 状態 ================= */
+var S=null;
+var UI={cells:[],booted:false};
+
+function rnd(a,b){ if(b===undefined){ return Math.random()*a; } return a+Math.random()*(b-a); }
+function ri(n){ return Math.floor(Math.random()*n); }
+function sleep(ms){ return new Promise(function(r){ setTimeout(r,ms); }); }
+function other(s){ return s===P?E:P; }
+function sideName(s){ return s===P?t('sideP'):t('sideE'); }
+function tileAt(x,y){ return S.tiles[y][x]; }
+function terrOf(x,y){ return TERRAIN[tileAt(x,y).t]; }
+function unitAt(x,y){
+  for(var i=0;i<S.units.length;i++){ var u=S.units[i]; if(u.x===x&&u.y===y) return u; }
+  return null;
+}
+function unitsOf(s){ return S.units.filter(function(u){ return u.side===s; }); }
+function logLine(k,p){ S.log.unshift({k:k,p:p||null}); if(S.log.length>3) S.log.length=3; }
+var fxTimer=null;
+function fx(x,y,text){
+  S.fx={x:x,y:y,text:text};
+  if(fxTimer) clearTimeout(fxTimer);
+  fxTimer=setTimeout(function(){ fxTimer=null; if(S){ S.fx=null; } },720);
+}
+
+/* ================= 盤面生成 ================= */
+function genMap(){
+  var t=[],x,y,i;
+  for(y=0;y<ROWS;y++){ t.push([]); for(x=0;x<COLS;x++) t[y].push({t:'plain',owner:null}); }
+  for(y=0;y<4;y++){
+    for(x=0;x<COLS;x++){
+      var r=Math.random();
+      t[y][x].t = r<0.17?'forest' : (r<0.27?'mountain' : (r<0.34?'water':'plain'));
+    }
+  }
+  for(x=0;x<5;x++){
+    var q=Math.random();
+    var mid = q<0.14?'forest' : (q<0.22?'water':'plain');
+    t[4][x].t=mid; t[4][COLS-1-x].t=mid;
+  }
+  for(y=0;y<4;y++) for(x=0;x<COLS;x++) t[ROWS-1-y][x].t=t[y][x].t;
+
+  // 村: 上下対称に3組 + 中央帯に中立2つ
+  var used={}, placed=0, tries=0;
+  while(placed<3 && tries++<200){
+    var vx=ri(COLS), vy=1+ri(3);
+    var k=vx+','+vy;
+    if(used[k]) continue;
+    if(t[vy][vx].t!=='plain') continue;
+    used[k]=1; t[vy][vx].t='village'; t[ROWS-1-vy][vx].t='village'; placed++;
+  }
+  var cand=[1,3,5,7];
+  cand.sort(function(){ return Math.random()-0.5; });
+  for(i=0;i<2;i++){ var cx=cand[i]; if(t[4][cx].t==='plain') t[4][cx].t='village'; }
+
+  // 本営と周辺を整地（上下で対称になる方向セットを使う）
+  [P,E].forEach(function(s){
+    var b=BASE_POS[s];
+    t[b.y][b.x].t='base'; t[b.y][b.x].owner=s;
+    [[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,1],[1,-1],[-1,-1]].forEach(function(d){
+      var nx=b.x+d[0], ny=b.y+d[1];
+      if(nx<0||ny<0||nx>=COLS||ny>=ROWS) return;
+      if(t[ny][nx].t==='village'||t[ny][nx].t==='base') return;
+      t[ny][nx].t='plain';
+    });
+  });
+  // 初期配置マスは必ず通行可能にする（SPAWN が唯一の定義）
+  [P,E].forEach(function(s){
+    SPAWN[s].forEach(function(sp){
+      if(t[sp.y][sp.x].t==='water'||t[sp.y][sp.x].t==='mountain') t[sp.y][sp.x].t='plain';
+    });
+  });
+  return t;
+}
+
+/* ================= ゲームフロー ================= */
+function newGame(diff,stageId){
+  var def=stageDef(stageId)||stageDef(PROF.stage)||STAGES[0];
+  var tiles=buildStage(def);                 // BASE_HP / UNIT_CAP / BASE_POS / SPAWN もここで更新
+  S={
+    diff:(diff==='easy'||diff==='hard')?diff:'normal', stage:def.key,
+    turn:1, phase:P,
+    coins:{p:START_COINS,e:START_COINS},
+    baseHp:{p:BASE_HP,e:BASE_HP},
+    tiles:tiles, units:[], nextId:1,
+    sel:null, summon:null, log:[], undo:[], over:null, fx:null, busy:false
+  };
+  [P,E].forEach(function(s){
+    SPAWN[s].forEach(function(sp){ addUnit(s,sp.t,sp.x,sp.y); });
+  });
+  PROF.diff=S.diff; PROF.stage=def.key; saveProfile();
+  closeOverlay('overOv'); closeOverlay('startOv');
+  logLine('log_start');
+  applyIncome(P,true);
+  render();
+  saveGame(true);
+}
+
+function addUnit(side,type,x,y){
+  var T=TYPES[type];
+  var u={id:S.nextId++,side:side,type:type,x:x,y:y,hp:T.hp,moved:false,acted:false};
+  S.units.push(u);
+  return u;
+}
+
+function incomeOf(side){
+  var v=0;
+  for(var y=0;y<ROWS;y++) for(var x=0;x<COLS;x++){
+    var t=S.tiles[y][x];
+    if(t.t==='village'&&t.owner===side) v++;
+  }
+  var base = side===P ? 5 : DIFF[S.diff].foeIncome;
+  return base + 2*v + Math.floor(S.turn/8);   // 長期化するほど徴兵費が上がる
+}
+
+function applyIncome(side,first){
+  if(!first){
+    var inc=incomeOf(side);
+    S.coins[side]=Math.min(99,S.coins[side]+inc);
+    logLine('log_income',{side:side,inc:inc,coins:S.coins[side]});
+  }
+  unitsOf(side).forEach(function(u){
+    var t=tileAt(u.x,u.y);
+    if((t.t==='village'&&t.owner===side)||(t.t==='base'&&t.owner===side)){
+      if(u.hp<TYPES[u.type].hp){
+        var heal=Math.min(3,TYPES[u.type].hp-u.hp);
+        u.hp+=heal; fx(u.x,u.y,'+'+heal);
+      }
+    }
+    u.moved=false; u.acted=false;
+  });
+}
+
+function countVillages(side){
+  var v=0;
+  for(var y=0;y<ROWS;y++) for(var x=0;x<COLS;x++){
+    var t=S.tiles[y][x]; if(t.t==='village'&&t.owner===side) v++;
+  }
+  return v;
+}
+
+function snapshot(){
+  return JSON.stringify({
+    units:S.units, tiles:S.tiles, coins:S.coins, baseHp:S.baseHp,
+    log:S.log, fx:null, sel:S.sel, summon:S.summon
+  });
+}
+function pushUndo(){
+  S.undo.push(snapshot());
+  if(S.undo.length>25) S.undo.shift();
+}
+function doUndo(){
+  if(S.phase!==P||S.busy||S.over) return;
+  if(!S.undo.length) return;
+  var s=JSON.parse(S.undo.pop());
+  S.units=s.units; S.tiles=s.tiles; S.coins=s.coins; S.baseHp=s.baseHp;
+  S.log=s.log; S.sel=s.sel; S.summon=s.summon; S.fx=null;
+  logLine('log_undo');
+  render();
+}
+
+function endTurn(){
+  if(S.phase!==P||S.busy||S.over) return;
+  S.sel=null; S.summon=null; S.undo.length=0; S.fx=null;
+  S.phase=E;
+  applyIncome(E);
+  sfx('turnE');
+  render();
+  aiTurn();
+}
+
+function checkEnd(){
+  if(S.over) return true;
+  for(var si=0;si<2;si++){
+    var side=si===0?P:E;
+    if(S.baseHp[side]<=0){
+      S.baseHp[side]=0;
+      finish(other(side), 'log_base_fall', {w:other(side), l:side});
+      return true;
+    }
+  }
+  for(var j=0;j<2;j++){
+    var s2=j===0?P:E;
+    var cheapest=Math.min(TYPES.ho.cost,TYPES.yu.cost,TYPES.ki.cost,TYPES.ya.cost);
+    if(unitsOf(s2).length===0 && S.coins[s2]<cheapest){
+      finish(other(s2), 'log_elim', {l:s2});
+      return true;
+    }
+  }
+  return false;
+}
+function finish(winner,key,p){
+  S.over={winner:winner,k:key,p:p||null};
+  S.busy=false;
+  if(winner===P){
+    PROF.wins++;
+    PROF.cleared[S.stage]=1;
+    var b=PROF.best[S.stage];
+    if(!b||S.turn<b) PROF.best[S.stage]=S.turn;   // 最短ターンを記録
+  } else PROF.losses++;
+  saveProfile();
+  lsDel(LS_G);                                    // 決着済みの続行はしない
+  sfx(winner===P?'win':'lose');
+  render();
+  renderOver();
+  openOverlay('overOv');
+}
+function renderOver(){
+  var el=document.getElementById('bigResult'), msg=document.getElementById('overMsg');
+  if(!el||!msg) return;
+  if(!S||!S.over){ el.textContent=''; msg.textContent=''; return; }
+  var win=S.over.winner===P;
+  el.textContent=win?t('won'):t('lost');
+  el.style.color=win?'#7ef0b0':'#f58f8f';
+  msg.textContent=t('over_line',{reason:t(S.over.k,S.over.p),n:S.turn});
+  var nb=document.getElementById('nextBtn');
+  if(nb){
+    var nxt=STAGES[stageIndex(S.stage)+1]||null;
+    nb.dataset.k=nxt?nxt.key:'';
+    nb.style.display=(nxt&&win)?'':'none';
+  }
+}
+
+/* ================= 移動・射程 ================= */
+function passable(u,x,y){
+  if(x<0||y<0||x>=COLS||y>=ROWS) return false;
+  var t=tileAt(x,y), info=TERRAIN[t.t];
+  if(!isFinite(info.cost)) return false;
+  if(t.t==='mountain'&&TYPES[u.type].noMountain) return false;
+  if(t.t==='base'&&t.owner!==u.side) return false;
+  if(unitAt(x,y)) return false;
+  return true;
+}
+function reachable(u){
+  var T=TYPES[u.type], start=u.x+u.y*COLS;
+  var best={}; best[start]=0;
+  var open=[{d:0,x:u.x,y:u.y}];
+  while(open.length){
+    open.sort(function(a,b){ return a.d-b.d; });
+    var cur=open.shift();
+    var key=cur.x+cur.y*COLS;
+    if(best[key]<cur.d) continue;
+    var dirs=[[1,0],[-1,0],[0,1],[0,-1]];
+    for(var i=0;i<4;i++){
+      var nx=cur.x+dirs[i][0], ny=cur.y+dirs[i][1];
+      if(!passable(u,nx,ny)) continue;
+      var nd=cur.d+TERRAIN[tileAt(nx,ny).t].cost;
+      var nk=nx+ny*COLS;
+      if(nd>T.move) continue;
+      if(best[nk]===undefined||nd<best[nk]){ best[nk]=nd; open.push({d:nd,x:nx,y:ny}); }
+    }
+  }
+  return best;
+}
+function targetsFrom(u,x,y){
+  var T=TYPES[u.type], out=[],i;
+  for(i=0;i<S.units.length;i++){
+    var o=S.units[i];
+    if(o.side===u.side) continue;
+    if(Math.abs(o.x-x)+Math.abs(o.y-y)<=T.range) out.push({kind:'unit',u:o});
+  }
+  var foe=other(u.side), b=BASE_POS[foe];
+  if(S.baseHp[foe]>0 && Math.abs(b.x-x)+Math.abs(b.y-y)<=T.range) out.push({kind:'base',side:foe,x:b.x,y:b.y});
+  return out;
+}
+
+/* ================= 戦闘 ================= */
+function dmgOf(att,target,counter){
+  var A=TYPES[att.type], ratio=att.hp/A.hp;
+  var mult=1, def=0, hpTarget=null;
+  if(target.kind==='unit'){
+    mult=CNT[att.type][target.u.type]||1;
+    def=TERRAIN[tileAt(target.u.x,target.u.y).t].def;
+  }else{
+    mult=1; def=TERRAIN.base.def;
+  }
+  var d=A.atk*mult*(0.45+0.55*ratio)-def;
+  if(target.kind==='base') d*=siegeMul();   // 長期化すると本営攻略が加速する
+  else d*=rampMul();                        // 長期化すると兵の消耗も激しくなる（膠着防止）
+  if(counter) d*=COUNTER;
+  return Math.max(1,d);
+}
+function siegeMul(){ if(!S) return 1; return 1+Math.floor(Math.max(0,S.turn-1)/12); }
+var RAMP_FROM=30, RAMP_STEP=0.08, RAMP_MAX=3.5;
+function rampMul(){ if(!S||S.turn<RAMP_FROM) return 1; return Math.min(RAMP_MAX,1+RAMP_STEP*(S.turn-RAMP_FROM)); }
+function rollOf(att,target,counter){
+  var base=dmgOf(att,target,counter);
+  return Math.max(1,Math.round(base*rnd(0.9,1.12)));
+}
+function killUnit(u){
+  var i=S.units.indexOf(u);
+  if(i>=0) S.units.splice(i,1);
+  if(S.sel===u.id) S.sel=null;
+}
+function doAttack(u,target){
+  u.acted=true; u.moved=true;
+  sfx('atk');
+  if(target.kind==='unit'){
+    var d=target.u, dmg=rollOf(u,target,false);
+    d.hp-=dmg; fx(d.x,d.y,'-'+dmg);
+    sfx(d.hp<=0?'kill':'hit');
+    logLine('log_hit',{a:u.side,au:u.type,d:d.side,du:d.type,dmg:dmg});
+    if(d.hp<=0){
+      killUnit(d);
+      logLine('log_kill',{d:d.side,du:d.type});
+    }else{
+      var dist=Math.abs(u.x-d.x)+Math.abs(u.y-d.y);
+      if(TYPES[d.type].range===1 && dist<=1 && u.hp>0){
+        var c=rollOf(d,{kind:'unit',u:u},true);
+        u.hp-=c; fx(u.x,u.y,'-'+c);
+        sfx('counter');
+        logLine('log_counter',{dmg:c});
+        if(u.hp<=0){ killUnit(u); logLine('log_died',{s:u.side,u:u.type}); }
+      }
+    }
+  }else{
+    var dmg2=rollOf(u,target,false);
+    S.baseHp[target.side]-=dmg2;
+    fx(target.x,target.y,'-'+dmg2);
+    sfx('base');
+    logLine('log_basehit',{s:u.side,u:u.type,foe:target.side,dmg:dmg2,left:Math.max(0,S.baseHp[target.side])});
+  }
+  checkEnd();
+}
+function moveTo(u,x,y){
+  if(u.x===x&&u.y===y){ u.moved=true; return; }
+  u.x=x; u.y=y; u.moved=true;
+  if(u.side===P) sfx('move');
+  var t=tileAt(x,y);
+  if(t.t==='village'&&t.owner!==u.side){
+    t.owner=u.side;
+    logLine('log_capture',{u:u.type,s:u.side});
+  }
+}
+
+/* ================= 採用 ================= */
+function legalSummon(side,type){
+  var out=[],seen={};
+  function ok(x,y){
+    if(x<0||y<0||x>=COLS||y>=ROWS) return false;
+    var t=S.tiles[y][x];
+    if(!isFinite(TERRAIN[t.t].cost)) return false;
+    if(t.t==='base'&&t.owner!==side) return false;
+    if(t.t==='mountain'&&type&&TYPES[type].noMountain) return false;
+    if(unitAt(x,y)) return false;
+    return true;
+  }
+  function add(x,y){
+    if(!ok(x,y)) return;
+    var k=x+','+y; if(seen[k]) return; seen[k]=1;
+    out.push({x:x,y:y});
+  }
+  // 自軍の本営マスとその隣接マスが徴兵拠点
+  var b=BASE_POS[side];
+  if(S.tiles[b.y][b.x].owner===side){
+    add(b.x,b.y);
+    [[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,1],[1,-1],[-1,-1]].forEach(function(d){ add(b.x+d[0],b.y+d[1]); });
+  }
+  // 占領した村も前線の徴兵拠点になる
+  for(var y=0;y<ROWS;y++) for(var x=0;x<COLS;x++){
+    var t=S.tiles[y][x];
+    if(t.t==='village'&&t.owner===side) add(x,y);
+  }
+  return out;
+}
+function trySummon(type,x,y){
+  var T=TYPES[type];
+  var t=tileAt(x,y);
+  var spot=legalSummon(P,type);
+  var allowed=false;
+  for(var i=0;i<spot.length;i++) if(spot[i].x===x&&spot[i].y===y) allowed=true;
+  if(!allowed) return false;
+  if(S.coins.p<T.cost){ logLine('log_nocoins',{u:type,cost:T.cost}); render(); return false; }
+  if(unitsOf(P).length>=UNIT_CAP){ logLine('log_cap'); render(); return false; }
+  pushUndo();
+  S.coins.p-=T.cost;
+  addUnit(P,type,x,y).acted=true;
+  logLine('log_summon',{u:type,coins:S.coins.p});
+  render();
+  return true;
+}
+
+/* ================= AI ================= */
+var AI_SIEGE={};   // 今ターン、交戦を無視して本営へ迂回させる兵の id
+function threatAt(x,y,side){
+  // 次ターン、敵がこのマスに与えられる期待ダメージの概算（歩兵を想定）
+  var sum=0, foes=unitsOf(other(side));
+  var dummy={kind:'unit',u:{side:other(side),type:'ho',hp:TYPES.ho.hp,x:x,y:y}};
+  for(var i=0;i<foes.length;i++){
+    var f=foes[i], T=TYPES[f.type];
+    if(Math.abs(f.x-x)+Math.abs(f.y-y)<=T.move+T.range) sum+=dmgOf(f,dummy,false)*0.5;
+  }
+  return sum;
+}
+function scoreAttack(u,fx0,fy0,target){
+  var dmg=dmgOf(u,target,false), sc=dmg*1.7;
+  if(target.kind==='unit'){
+    var d=target.u;
+    if(dmg>=d.hp) return sc+18+TYPES[d.type].cost*2.5;      // 仕留めるなら迷う必要なし
+    sc-=Math.min(threatAt(fx0,fy0,u.side),7)*0.45;           // 撃って引いただけでは損
+    sc+=TYPES[d.type].range>1?2.5:0;                          // 遠隔兵は反撃してこないので狙い目
+    sc+=(1-d.hp/TYPES[d.type].hp)*5;                          // 消耗した兵への集中攻撃
+    sc+=TYPES[d.type].cost*0.3;
+  }else{
+    if(dmg>=S.baseHp[target.side]) return 100000;
+    // 本営を削るのは兵を削るより価値が高い。削れているほど優先する。
+    sc+=dmg*1.5+15+(1-S.baseHp[target.side]/BASE_HP)*12;
+    sc-=Math.min(threatAt(fx0,fy0,u.side),7)*0.2;
+  }
+  return sc;
+}
+var DIST_CACHE={k:'',m:null};
+function baseCostMap(side,type){
+  // 敵本営までの地形コスト距離（兵の占用は無視）。1手先看通しでは回り道を評価できないため。
+  var key=S.stage+'|'+S.turn+'|'+side+'|'+type;
+  if(DIST_CACHE.k===key) return DIST_CACHE.m;
+  var b=BASE_POS[other(side)], noM=!!TYPES[type].noMountain, i, x, y;
+  var m=[], dirs=[[1,0],[-1,0],[0,1],[0,-1]];
+  for(y=0;y<ROWS;y++){ m.push([]); for(x=0;x<COLS;x++) m[y].push(Infinity); }
+  m[b.y][b.x]=0;
+  var open=[{d:0,x:b.x,y:b.y}];
+  while(open.length){
+    open.sort(function(a,c){ return a.d-c.d; });
+    var cur=open.shift();
+    if(m[cur.y][cur.x]<cur.d) continue;
+    for(i=0;i<4;i++){
+      var nx=cur.x+dirs[i][0], ny=cur.y+dirs[i][1];
+      if(nx<0||ny<0||nx>=COLS||ny>=ROWS) continue;
+      var tl=tileAt(nx,ny);
+      if(noM&&tl.t==='mountain') continue;
+      var c=TERRAIN[tl.t].cost;
+      if(!isFinite(c)) continue;
+      var nd=cur.d+c;
+      if(nd<m[ny][nx]){ m[ny][nx]=nd; open.push({d:nd,x:nx,y:ny}); }
+    }
+  }
+  DIST_CACHE={k:key,m:m};
+  return m;
+}
+function advanceScore(u,x,y,points){
+  // 勝利条件は本営攻略。本営までの「歩ける距離」を基準に、近くの敵を考慮して進む。
+  var b=BASE_POS[other(u.side)];
+  var man=Math.abs(b.x-x)+Math.abs(b.y-y);
+  var dp=baseCostMap(u.side,u.type)[y][x];
+  var db=isFinite(dp)?Math.min(14,dp):man;
+  var urg=S.turn>24?1+Math.min(1,(S.turn-24)*0.05):1;   // 長引くほど本営を目指す
+  var du=Infinity;
+  for(var i=0;i<points.length;i++){
+    var d=Math.abs(points[i].x-x)+Math.abs(points[i].y-y);
+    if(d<du) du=d;
+  }
+  if(!isFinite(du)) du=9;
+  var sc=-db*1.15*urg;
+  sc-=Math.max(0,6-Math.min(du,6))*0.55;
+  if(man<=1) sc+=7*urg;
+  var t=tileAt(x,y), def=TERRAIN[t.t].def;
+  sc+=def*0.5;
+  if(t.t==='village'&&t.owner!==u.side) sc+=5;
+  if(TYPES[u.type].range>1){
+    if(du===2) sc+=3.5; else if(du<=1) sc-=2;
+  }
+  sc-=Math.min(threatAt(x,y,u.side),8)*0.12;
+  return sc;
+}
+function aiChooseTargetPoints(side){
+  var pts=[], foes=unitsOf(other(side));
+  for(var i=0;i<foes.length;i++) pts.push({x:foes[i].x,y:foes[i].y});
+  return pts;
+}
+function aiPickSummon(){
+  if(S.diff==='easy'&&Math.random()<0.75) return 'ho';
+  var foes=unitsOf(P), cnt={ho:0,yu:0,ki:0,ya:0};
+  for(var i=0;i<foes.length;i++) cnt[foes[i].type]++;
+  var want;
+  if(cnt.ki>=2) want='ya';
+  else if(cnt.yu>=2) want='ki';
+  else if(unitsOf(E).length<4) want=(Math.random()<0.6?'ho':'ya');
+  else want=(Math.random()<0.4?'ki':(Math.random()<0.5?'yu':'ho'));
+  return want;
+}
+async function aiTurn(){
+  S.busy=true; render();
+  await sleep(260);
+  // 採用
+  var guard=0;
+  while(unitsOf(E).length<UNIT_CAP && guard++<5){
+    var type=aiPickSummon();
+    var alt=['ho','ya','yu','ki'].filter(function(k){ return TYPES[k].cost<=S.coins.e; });
+    if(!alt.length) break;
+    if(TYPES[type].cost>S.coins.e) type=alt.sort(function(a,b){ return TYPES[b].cost-TYPES[a].cost; })[0];
+    var tiles=legalSummon(E,type);
+    if(!tiles.length){
+      tiles=legalSummon(E,'ho'); type='ho';
+      if(!tiles.length||TYPES.ho.cost>S.coins.e) break;
+    }
+    var spot=tiles.sort(function(){ return Math.random()-0.5; })[0];
+    S.coins.e-=TYPES[type].cost;
+    addUnit(E,type,spot.x,spot.y).acted=true;
+    logLine('log_summon_foe',{s:E,u:type});
+    render(); await sleep(170);
+  }
+  // 行動
+  var order=unitsOf(E).slice().sort(function(a,b){
+    var ma=TYPES[a.type].move, mb=TYPES[b.type].move;
+    if(ma!==mb) return ma-mb;                     // 足の遅い兵から前へ出し、機動力は後に温存
+    return TYPES[b.type].atk-TYPES[a.type].atk;
+  });
+  // 足の速い2兵は本営への迂回分隊にする
+  AI_SIEGE={};
+  order.slice().sort(function(a,b){
+    return TYPES[b.type].move-TYPES[a.type].move;
+  }).slice(0,2).forEach(function(v){ AI_SIEGE[v.id]=1; });
+  for(var i=0;i<order.length;i++){
+    var u=order[i];
+    if(S.over) break;
+    if(S.units.indexOf(u)<0) continue;
+    aiAct(u);
+    render();
+    if(S.over) break;
+    await sleep(190);
+  }
+  if(!S.over){
+    S.turn++;
+    S.phase=P;
+    applyIncome(P);
+    sfx('turn');
+    checkEnd();
+  }
+  S.busy=false;
+  render();
+  saveGame();            // 手番の区切りで自動保存
+}
+function aiAct(u){
+  var d=DIFF[S.diff], noise=d.noise;
+  var reach=reachable(u);
+  var fb0=BASE_POS[other(u.side)];
+  // 迂回分隊は敵本営が視界(2マス)に入るまで交戦を無視して走り続ける
+  var rush=!!AI_SIEGE[u.id] && Math.abs(fb0.x-u.x)+Math.abs(fb0.y-u.y)>2;
+  // うっかり手：やさしいほど「攻撃せず適当に動く」ことがある
+  if(Math.random()<d.blunder){
+    var keys=Object.keys(reach), bk=+keys[ri(keys.length)];
+    if(bk!==u.x+u.y*COLS) moveTo(u,bk%COLS,Math.floor(bk/COLS));
+    else u.moved=true;
+    u.acted=true;
+    return;
+  }
+  var best=null;
+  for(var key in reach){
+    var k=+key, x=k%COLS, y=Math.floor(k/COLS);
+    var tgs=targetsFrom(u,x,y);
+    for(var j=0;j<tgs.length;j++){
+      var sc=scoreAttack(u,x,y,tgs[j])+rnd(0,noise*18);
+      if(!best||sc>best.sc) best={sc:sc,x:x,y:y,t:tgs[j]};
+    }
+  }
+  var canKill=best && best.t.kind==='unit' && dmgOf(u,best.t,false)>=best.t.u.hp;
+  if(best && best.sc>-1 && (!rush || canKill || best.t.kind==='base')){
+    // 仕留める場合を除き、本営に隣接できるなら包囲を優先する（人間らしい攻め）
+    var fb=BASE_POS[other(u.side)];
+    var kill=best.t.kind==='unit' && dmgOf(u,best.t,false)>=best.t.u.hp;
+    var siege=null;
+    if(!kill){
+      for(var kk in reach){
+        var k3=+kk, sx=k3%COLS, sy=Math.floor(k3/COLS);
+        if(Math.abs(fb.x-sx)+Math.abs(fb.y-sy)<=1){ siege={x:sx,y:sy}; break; }
+      }
+    }
+    if(siege){
+      moveTo(u,siege.x,siege.y);
+      var t3=targetsFrom(u,u.x,u.y);
+      if(t3.length && !S.over){
+        var pick=null;
+        for(var q=0;q<t3.length;q++){
+          var sc3=scoreAttack(u,u.x,u.y,t3[q]);
+          if(!pick||sc3>pick.sc) pick={sc:sc3,t:t3[q]};
+        }
+        if(pick.sc>0) doAttack(u,pick.t);
+        else u.acted=true;
+      } else u.acted=true;
+      return;
+    }
+    moveTo(u,best.x,best.y);
+    if(!S.over) doAttack(u,best.t);
+    return;
+  }
+  var pts=aiChooseTargetPoints(E);
+  if(!pts.length){ u.acted=true; return; }
+  var mv=null;
+  for(var key2 in reach){
+    var k2=+key2, mx=k2%COLS, my=Math.floor(k2/COLS);
+    var s2=advanceScore(u,mx,my,pts)+rnd(0,noise*10);
+    if(!mv||s2>mv.sc) mv={sc:s2,x:mx,y:my};
+  }
+  if(mv && !(mv.x===u.x&&mv.y===u.y)) moveTo(u,mv.x,mv.y);
+  else u.moved=true;
+  u.acted=true;
+  var tgs2=targetsFrom(u,u.x,u.y);
+  if(tgs2.length){
+    var pick=null;
+    for(var q=0;q<tgs2.length;q++){
+      var sc2=scoreAttack(u,u.x,u.y,tgs2[q]);
+      if(!pick||sc2>pick.sc) pick={sc:sc2,t:tgs2[q]};
+    }
+    if(pick&&pick.sc>0&&!S.over) doAttack(u,pick.t);
+  }
+}
+
+/* ================= 描画 ================= */
+function buildBoard(){
+  var b=document.getElementById('board');
+  b.innerHTML='';
+  UI.cells=[];
+  for(var y=0;y<ROWS;y++){
+    for(var x=0;x<COLS;x++){
+      var el=document.createElement('div');
+      el.className='cell';
+      (function(cx,cy,cel){
+        cel.addEventListener('click',function(){ onTile(cx,cy); });
+      })(x,y,el);
+      b.appendChild(el);
+      UI.cells.push(el);
+    }
+  }
+}
+function hlKeySet(){
+  var mv={},hit={};
+  if(S.over||S.phase!==P) return {mv:mv,hit:hit};
+  if(S.summon){
+    legalSummon(P,S.summon).forEach(function(p){ mv[p.x+p.y*COLS]=1; });
+    return {mv:mv,hit:hit};
+  }
+  var u=selectedUnit();
+  if(!u) return {mv:mv,hit:hit};
+  if(!u.moved){
+    var r=reachable(u);
+    for(var key in r){ if(+key!==u.x+u.y*COLS) mv[key]=1; }
+  }
+  if(!u.acted){
+    targetsFrom(u,u.x,u.y).forEach(function(t){
+      if(t.kind==='unit') hit[t.u.x+t.u.y*COLS]=1;
+      else hit[t.x+t.y*COLS]=1;
+    });
+  }
+  return {mv:mv,hit:hit};
+}
+function selectedUnit(){
+  if(S.sel===null) return null;
+  for(var i=0;i<S.units.length;i++) if(S.units[i].id===S.sel) return S.units[i];
+  return null;
+}
+function render(){
+  if(!S) return;
+  var b=document.getElementById('board');
+  if(!UI.cells.length) buildBoard();
+  var hl=hlKeySet();
+  var su=selectedUnit();
+  for(var y=0;y<ROWS;y++){
+    for(var x=0;x<COLS;x++){
+      var i=y*COLS+x, el=UI.cells[i], tl=S.tiles[y][x], info=TERRAIN[tl.t];
+      var cls='cell '+tl.t;
+      if(tl.owner) cls+=' own-'+tl.owner;
+      var key=x+y*COLS;
+      if(hl.mv[key]) cls+=' hl-move';
+      if(hl.hit[key]) cls+=' hl-hit';
+      if(su&&su.x===x&&su.y===y) cls+=' sel';
+      el.className=cls;
+      var html=info.glyph?'<span class="terr">'+tglyph(tl.t)+'</span>':'';
+      var u=unitAt(x,y);
+      if(u){
+        var T=TYPES[u.type], pct=Math.max(0,Math.round(u.hp/T.hp*100));
+        html+='<div class="chip '+u.side+(u.acted?' spent':'')+'" title="'+uname(u.type)+'"><span>'+uglyph(u.type)+'</span>'+
+             '<i class="hpb"><b class="'+(pct<=40?'low':'')+'" style="width:'+pct+'%"></b></i></div>';
+      }
+      if(S.fx&&S.fx.x===x&&S.fx.y===y) html+='<div class="fx">'+S.fx.text+'</div>';
+      el.innerHTML=html;
+    }
+  }
+  b.style.gridTemplateColumns='repeat('+COLS+',var(--cell))';
+  b.style.gridTemplateRows='repeat('+ROWS+',var(--cell))';
+  document.getElementById('hudP').innerHTML=sideHtml(P);
+  document.getElementById('hudE').innerHTML=sideHtml(E);
+  document.getElementById('hudP').className='side p'+(S.phase===P&&!S.over?' active':'');
+  document.getElementById('hudE').className='side e'+(S.phase===E&&!S.over?' active':'');
+  document.getElementById('turnNo').textContent=t('turn_n',{n:S.turn});
+  document.getElementById('phase').textContent=S.over?t('phase_over'):(S.phase===P?t('phase_you'):t('phase_enemy'));
+  var lg=document.getElementById('log');
+  lg.innerHTML=S.log.map(function(o){
+    return '<div>'+(typeof o==='string'?o:t(o.k,o.p))+'</div>';
+  }).join('');
+  document.getElementById('endBtn').disabled=(S.phase!==P||S.busy||!!S.over);
+  document.getElementById('undoBtn').disabled=(S.phase!==P||S.busy||!S.undo.length||!!S.over);
+  renderRecruits();
+  if(su) revealCell(su.x,su.y);
+  else if(S.fx) revealCell(S.fx.x,S.fx.y);
+}
+function sideHtml(side){
+  var name=side===P?t('hud_you'):t('hud_foe');
+  var v=countVillages(side), hp=Math.max(0,S.baseHp[side]);
+  return '<div class="sname">'+name+'</div>'+
+    '<div class="stats"><span>'+t('k_coins')+' '+S.coins[side]+'</span><span>'+t('k_units')+' '+unitsOf(side).length+'</span><span>'+t('k_villages')+' '+v+'</span></div>'+
+    '<div class="bar"><b style="width:'+(hp/BASE_HP*100)+'%"></b></div>'+
+    '<div class="stats"><span>'+t('k_base')+' '+hp+'/'+BASE_HP+'</span></div>';
+}
+function renderRecruits(){
+  var box=document.getElementById('recruits');
+  var html='';
+  ['ho','yu','ki','ya'].forEach(function(k){
+    var T=TYPES[k];
+    var can=S.phase===P&&!S.busy&&!S.over&&S.coins.p>=T.cost&&legalSummon(P,k).length>0;
+    var on=S.summon===k?' on':'';
+    html+='<button class="recruit'+on+'" data-k="'+k+'" title="'+uname(k)+'"'+(can?'':' disabled')+
+          '><b>'+uglyph(k)+'</b><span>'+T.cost+'</span></button>';
+  });
+  box.innerHTML=html;
+  var bs=box.querySelectorAll('button');
+  for(var i=0;i<bs.length;i++){
+    (function(btn){
+      btn.addEventListener('click',function(){
+        if(S.phase!==P||S.busy||S.over) return;
+        S.sel=null;
+        S.summon=(S.summon===btn.dataset.k)?null:btn.dataset.k;
+        render();
+      });
+    })(bs[i]);
+  }
+}
+var MIN_CELL=30, MAX_CELL=66;
+function fit(){
+  var wrap=document.getElementById('wrap'); if(!wrap) return;
+  var w=(wrap.clientWidth||0)-12, h=(wrap.clientHeight||0)-12;
+  if(!(w>0)) w=360;
+  if(!(h>0)) h=360;
+  var c=Math.floor(Math.min(w/COLS,h/ROWS));
+  if(!isFinite(c)||c<MIN_CELL) c=MIN_CELL;   // 読みやすさのため最小サイズを確保
+  if(c>MAX_CELL) c=MAX_CELL;
+  // 盤面の必要サイズ（升目＋罫線2px＋盤内 padding3px×2＋枠 padding4px×2）
+  var need=ROWS*c+(ROWS-1)*2+6+8, needw=COLS*c+(COLS-1)*2+6+8;
+  var fits=(need<=h+1&&needw<=w+1);          // 収まらなければスクロールして見せる
+  var cls=wrap.classList;
+  if(cls&&cls.toggle) cls.toggle('fit',fits);
+  var bd=document.body;
+  if(bd&&bd.classList&&bd.classList.toggle) bd.classList.toggle('scrolling',!fits);
+  document.documentElement.style.setProperty('--cell',c+'px');
+  render();
+}
+function revealCell(x,y){
+  var wrap=document.getElementById('wrap');
+  if(!wrap||!wrap.classList||wrap.classList.contains('fit')) return;
+  var el=UI.cells[y*COLS+x];
+  if(!el||!el.scrollIntoView) return;
+  try{ el.scrollIntoView({block:'nearest',inline:'nearest',behavior:'smooth'}); }
+  catch(e){ try{ el.scrollIntoView(); }catch(e2){} }
+}
+
+/* ================= 入力 ================= */
+function onTile(x,y){
+  if(S.busy||S.over||S.phase!==P) return;
+  if(S.summon){
+    var ok=trySummon(S.summon,x,y);
+    if(ok){ S.summon=null; sfx('summon'); }
+    else sfx('err');
+    return;
+  }
+  var u=unitAt(x,y);
+  if(u&&u.side===P){
+    if(S.sel===u.id){ S.sel=null; sfx('unsel'); }
+    else { S.sel=u.id; sfx('sel'); }
+    S.fx=null; render(); return;
+  }
+  var sel=selectedUnit();
+  if(!sel){ return; }
+  var key=x+y*COLS;
+  var hl=hlKeySet();
+  if(hl.hit[key]&&!sel.acted){
+    var tgt=null;
+    targetsFrom(sel,sel.x,sel.y).forEach(function(t){
+      var tx=t.kind==='unit'?t.u.x:t.x, ty=t.kind==='unit'?t.u.y:t.y;
+      if(tx===x&&ty===y) tgt=t;
+    });
+    if(tgt){ pushUndo(); doAttack(sel,tgt); S.sel=null; render(); return; }
+  }
+  if(hl.mv[key]&&!sel.moved){
+    pushUndo();
+    moveTo(sel,x,y);
+    var tg=targetsFrom(sel,sel.x,sel.y);
+    if(!tg.length){ S.sel=null; }
+    render();
+    setTimeout(function(){ S.fx=null; render(); },620);
+    return;
+  }
+  S.sel=null; S.fx=null; render();
+}
+function openOverlay(id){ document.getElementById(id).classList.remove('hidden'); }
+function closeOverlay(id){ document.getElementById(id).classList.add('hidden'); }
+
+/* ================= 言語・ステージUI ================= */
+var I18N_IDS=[['endBtn','btn_end'],['undoBtn','btn_undo'],['helpBtn','btn_help'],['newBtn','btn_new'],
+  ['closeHelp','btn_close'],['stageBtn','btn_stage'],['againBtn','btn_again'],['nextBtn','btn_next'],
+  ['freshBtn','btn_fresh'],['wipeBtn','btn_wipe'],['closeStage','btn_close'],['pickStageBtn','btn_pickstage'],
+  ['resumeBtn','btn_continue'],['restartBtn','btn_newgame'],['scrollHint','scroll_hint']];
+function setText(id,key){ var el=document.getElementById(id); if(el) el.textContent=t(key); }
+function setLang(l){
+  if(!I18N[l]) return;
+  LANG=l; PROF.lang=l; saveProfile();
+  var ls=document.getElementById('langSel'); if(ls) ls.value=l;
+  applyLang();
+  if(S&&!S.over) saveGame(true);
+}
+function applyLang(){
+  if(!I18N[LANG]) LANG='ja';
+  try{ document.documentElement.lang=LANG; }catch(e){}
+  try{ document.title=t('app_title'); }catch(e){}
+  var bd=document.getElementById('board'); if(bd&&bd.setAttribute) bd.setAttribute('aria-label',t('board_aria'));
+  for(var i=0;i<I18N_IDS.length;i++) setText(I18N_IDS[i][0],I18N_IDS[i][1]);
+  var ds=document.getElementById('diffSel');
+  if(ds&&ds.options) for(var j=0;j<ds.options.length;j++) ds.options[j].textContent=diffLabel(ds.options[j].value);
+  if(document.querySelectorAll){
+    var nodes=document.querySelectorAll('[data-i18n]');
+    for(var k=0;k<nodes.length;k++){
+      var key=nodes[k].getAttribute('data-i18n');
+      if(key) nodes[k].textContent=t(key);
+    }
+  }
+  var hb=document.getElementById('helpBody'); if(hb) hb.innerHTML=helpHtml();
+  soundLabel();
+  if(S) render();
+  renderStages();
+  renderOver();
+}
+function anyLocked(){
+  for(var i=0;i<STAGES.length;i++) if(!stageUnlocked(i)) return true;
+  return false;
+}
+function renderStages(){
+  var box=document.getElementById('stList');
+  if(!box) return;
+  var html='';
+  for(var i=0;i<STAGES.length;i++){
+    var st=STAGES[i], lock=!stageUnlocked(i);
+    var cur=!!S&&S.stage===st.key&&!S.over;
+    var right='';
+    if(lock) right=t('locked');
+    else if(PROF.best[st.key]) right=t('best',{n:PROF.best[st.key]});
+    else if(PROF.cleared[st.key]) right=t('cleared');
+    if(cur) right=t('now');
+    html+='<button class="stcard'+(cur?' cur':'')+'" data-k="'+st.key+'"'+(lock?' disabled':'')+'>'+
+      '<span class="num">'+(i+1)+'</span><span class="txt"><span class="nm">'+stageName(st.key)+
+      '</span><span class="ds">'+t('d_'+st.key)+'</span></span><span class="bd">'+right+'</span></button>';
+  }
+  box.innerHTML=html;
+  var bs=box.querySelectorAll?box.querySelectorAll('button'):[];
+  for(var j=0;j<bs.length;j++){
+    (function(btn){
+      btn.addEventListener('click',function(){
+        var k=btn.dataset.k;
+        if(!k) return;
+        closeOverlay('stageOv'); closeOverlay('startOv'); closeOverlay('overOv');
+        newGame(document.getElementById('diffSel').value,k);
+      });
+    })(bs[j]);
+  }
+  var note=document.getElementById('saveNote');
+  if(note) note.textContent=t('save_note')+(anyLocked()?' '+t('locked_note'):'');
+}
+function showStart(d){
+  var el=document.getElementById('startInfo');
+  if(el) el.textContent=t('start_info',{stage:stageName(d.stage),turn:d.turn||1});
+  openOverlay('startOv');
+}
+
+function boot(){
+  if(UI.booted) return;
+  UI.booted=true;
+  buildBoard();
+  document.getElementById('endBtn').addEventListener('click',endTurn);
+  document.getElementById('undoBtn').addEventListener('click',doUndo);
+  document.getElementById('helpBtn').addEventListener('click',function(){ openOverlay('helpOv'); });
+  document.getElementById('closeHelp').addEventListener('click',function(){ closeOverlay('helpOv'); });
+  loadProfile();
+  LANG=detectLang();
+  var lsel=document.getElementById('langSel'); if(lsel) lsel.value=LANG;
+  var bootSave=loadSave();
+  var ds=document.getElementById('diffSel');
+  if(bootSave&&bootSave.diff) ds.value=bootSave.diff; else ds.value=PROF.diff||'normal';
+  ds.addEventListener('change',function(){
+    if(S) S.diff=this.value;
+    PROF.diff=this.value; saveProfile();
+    render();
+  });
+  document.getElementById('newBtn').addEventListener('click',function(){
+    newGame(ds.value, S?S.stage:PROF.stage);
+  });
+  document.getElementById('freshBtn').addEventListener('click',function(){
+    newGame(ds.value, S?S.stage:PROF.stage);
+  });
+  document.getElementById('againBtn').addEventListener('click',function(){
+    newGame(ds.value, S?S.stage:PROF.stage);
+  });
+  document.getElementById('nextBtn').addEventListener('click',function(){
+    if(this.dataset&&this.dataset.k) newGame(ds.value,this.dataset.k);
+  });
+  document.getElementById('stageBtn').addEventListener('click',function(){
+    renderStages(); openOverlay('stageOv');
+  });
+  document.getElementById('closeStage').addEventListener('click',function(){ closeOverlay('stageOv'); });
+  document.getElementById('wipeBtn').addEventListener('click',function(){ wipeSave(); });
+  document.getElementById('pickStageBtn').addEventListener('click',function(){
+    renderStages(); openOverlay('stageOv');
+  });
+  document.getElementById('resumeBtn').addEventListener('click',function(){
+    if(!resumeSave(bootSave||loadSave())) newGame(ds.value,PROF.stage);
+  });
+  document.getElementById('restartBtn').addEventListener('click',function(){
+    closeOverlay('startOv');
+    newGame(ds.value, S?S.stage:PROF.stage);
+  });
+  document.getElementById('langSel').addEventListener('change',function(){ setLang(this.value); });
+  document.getElementById('soundBtn').addEventListener('click',function(){ setSound(!SND.on); });
+  setSound(PROF.sound!==false,false);            // 音の設定はローカルに保存
+  window.addEventListener('orientationchange',function(){ setTimeout(fit,140); });
+  if(window.visualViewport&&window.visualViewport.addEventListener) window.visualViewport.addEventListener('resize',fit);
+  var unlock=function(){ unlockAudio(); };       // 最初の操作で AudioContext を起こす
+  document.addEventListener('pointerdown',unlock,{passive:true});
+  document.addEventListener('click',function(ev){
+    var tg=ev.target;
+    if(tg&&tg.closest&&tg.closest('button,select')) sfx('ui');
+  });
+  window.addEventListener('resize',fit);
+  if(window.addEventListener) window.addEventListener('pagehide',function(){ if(S&&!S.over) saveGame(true); });
+  document.addEventListener('keydown',function(ev){
+    if(ev.key===' '){ ev.preventDefault(); endTurn(); }
+    else if(ev.key==='u'||ev.key==='U'){ doUndo(); }
+    else if(ev.key==='Escape'){ S.sel=null; S.summon=null; render(); }
+  });
+  newGame(ds.value, bootSave?bootSave.stage:PROF.stage);
+  if(bootSave){                                  // 続行を選ぶまで元のセーブを残しておく
+    lsSet(LS_G,JSON.stringify(bootSave));
+    showStart(bootSave);
+  }
+  applyLang();
+  fit();
+}
+if(typeof document!=='undefined'&&document.getElementById('board')) boot();
+</script>
+</body>
+</html>
