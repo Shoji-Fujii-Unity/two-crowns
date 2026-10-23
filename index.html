@@ -51,17 +51,86 @@ body{
 body.scrolling #scrollHint{display:flex}
 .cell{
   position:relative;width:var(--cell,44px);height:var(--cell,44px);border-radius:3px;
-  background:#3a5240;display:flex;align-items:center;justify-content:center;cursor:pointer;
+  overflow:hidden;background:#3a5240;display:flex;align-items:center;justify-content:center;cursor:pointer;
+  isolation:isolate;box-shadow:inset 0 1px 2px rgba(255,255,255,.08),inset 0 -2px 3px rgba(0,0,0,.16);
 }
-.cell.plain{background:#3a5240}
-.cell.forest{background:#26402d}
-.cell.mountain{background:#5b5346}
-.cell.water{background:#234d6b;cursor:default}
-.cell.village{background:#6f5d31}
-.cell.base{background:#4a4359}
+.cell::before{
+  content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:0;
+}
+.cell.plain{
+  background:
+    radial-gradient(ellipse at 30% 20%,rgba(181,181,110,.18),transparent 58%),
+    radial-gradient(ellipse at 80% 85%,rgba(22,51,35,.28),transparent 62%),
+    linear-gradient(145deg,#63744a,#405a3b 58%,#344c37);
+}
+.cell.plain::before{
+  opacity:.35;
+  background:
+    radial-gradient(ellipse at 18% 72%,rgba(205,194,126,.48) 0 1px,transparent 2px),
+    radial-gradient(ellipse at 76% 30%,rgba(205,194,126,.38) 0 1px,transparent 2px),
+    repeating-linear-gradient(115deg,transparent 0 8px,rgba(205,194,126,.08) 9px,transparent 10px 15px);
+}
+.cell.forest{
+  background:
+    radial-gradient(ellipse at 45% 28%,rgba(108,142,76,.44),transparent 45%),
+    linear-gradient(145deg,#315339,#203d2e 70%,#183528);
+}
+.cell.forest::before{
+  opacity:.78;
+  background:
+    radial-gradient(ellipse at 20% 35%,#547044 0 13%,transparent 14%),
+    radial-gradient(ellipse at 52% 20%,#46683e 0 16%,transparent 17%),
+    radial-gradient(ellipse at 82% 40%,#5b7543 0 14%,transparent 15%),
+    radial-gradient(ellipse at 34% 76%,#3d623b 0 17%,transparent 18%),
+    radial-gradient(ellipse at 74% 82%,#345a38 0 17%,transparent 18%),
+    repeating-linear-gradient(90deg,transparent 0 9px,rgba(17,38,27,.25) 10px,transparent 12px);
+}
+.cell.mountain{
+  background:
+    radial-gradient(ellipse at 50% 90%,rgba(28,28,26,.48),transparent 54%),
+    repeating-linear-gradient(135deg,rgba(230,218,190,.08) 0 1px,transparent 1px 6px),
+    linear-gradient(145deg,#827a68,#635f54 54%,#48483f);
+}
+.cell.mountain::before{
+  inset:4% 5% 8%;opacity:.9;filter:drop-shadow(1px 2px 1px rgba(0,0,0,.48));
+  clip-path:polygon(0 88%,19% 46%,31% 56%,52% 8%,69% 44%,79% 34%,100% 88%);
+  background:
+    linear-gradient(158deg,transparent 0 36%,rgba(239,233,212,.95) 37% 42%,#c7c0ad 43% 49%,transparent 50%),
+    linear-gradient(115deg,#a59b83 0 28%,#716e60 29% 55%,#535447 56% 78%,#393e36 79%);
+}
+.cell.water{background:linear-gradient(150deg,#42819a,#27627e 52%,#174762);cursor:default}
+.cell.water::before{
+  opacity:.62;
+  background:
+    radial-gradient(ellipse at 25% 32%,rgba(178,220,218,.42),transparent 30%),
+    repeating-linear-gradient(168deg,transparent 0 6px,rgba(156,211,218,.24) 7px,transparent 8px 13px),
+    linear-gradient(180deg,rgba(144,204,208,.18),transparent 48%,rgba(5,37,59,.32));
+}
+.cell.village{
+  background:
+    radial-gradient(ellipse at 18% 80%,rgba(176,139,75,.48),transparent 40%),
+    linear-gradient(145deg,#8b7946,#695b34 60%,#514a30);
+}
+.cell.village::before{
+  opacity:.72;
+  background:
+    repeating-linear-gradient(0deg,transparent 0 5px,rgba(222,190,111,.32) 6px,transparent 7px 10px),
+    linear-gradient(115deg,transparent 0 38%,rgba(67,56,37,.48) 39% 47%,transparent 48%);
+}
+.cell.base{
+  background:
+    radial-gradient(ellipse at 50% 15%,rgba(196,184,177,.22),transparent 62%),
+    linear-gradient(145deg,#625d68,#484653 58%,#343844);
+}
+.cell.base::before{
+  opacity:.52;
+  background:
+    repeating-linear-gradient(0deg,transparent 0 8px,rgba(204,197,187,.3) 9px,transparent 10px 16px),
+    repeating-linear-gradient(90deg,transparent 0 13px,rgba(31,34,42,.34) 14px,transparent 15px 27px);
+}
 .cell.own-p{box-shadow:inset 0 0 0 1px #3b82f6}
 .cell.own-e{box-shadow:inset 0 0 0 1px #ef4444}
-.terr{position:absolute;top:0;left:2px;font-size:calc(var(--cell,44px)*.24);color:#fff;opacity:.42;pointer-events:none}
+.terr{position:absolute;top:0;left:2px;z-index:1;font-size:calc(var(--cell,44px)*.24);color:#fff;opacity:.58;text-shadow:0 1px 2px rgba(0,0,0,.8);pointer-events:none}
 .hl-move::after,.hl-hit::after{
   content:"";position:absolute;inset:0;border-radius:3px;pointer-events:none;
 }
@@ -70,7 +139,7 @@ body.scrolling #scrollHint{display:flex}
 .cell.sel{outline:2px solid #fde68a;outline-offset:-2px;z-index:2}
 /* ---------- units ---------- */
 .chip{
-  position:absolute;inset:11%;border-radius:7px;display:flex;align-items:center;justify-content:center;
+  position:absolute;inset:11%;z-index:2;border-radius:7px;display:flex;align-items:center;justify-content:center;
   font-weight:800;font-size:calc(var(--cell,44px)*.42);color:#fff;line-height:1;
   box-shadow:0 2px 4px rgba(0,0,0,.45);
 }
@@ -319,7 +388,7 @@ ja:{
  log_summon_foe:'{s}が{u}を配置',
  log_nocoins:'資金が足りない（{u}に{cost}必要）',
  log_cap:'兵数が上限です',
- help_html:'<h2>遊び方</h2><p>9&times;9の盤面で青軍（あなた）と赤軍（CPU）が争うターン制ストラテジーです。</p><h3>勝利条件</h3><ul><li>敵の<b>本営</b>を破壊する。敵本営の隣接マスから攻撃できます。13ターン目から本営へのダメージが2倍、25ターン目から3倍…と増えていくので、長引けば必ず決着します。30ターン目以降は<b>兵へのダメージ</b>も少しずつ増えていきます（最大約3.5倍）ので、膠着状態が続けば消耗戦に決着が寄っていきます。</li><li>または、敵が兵を1つも持たず、新たに調達する資金もない状態にする。</li></ul><h3>1ターンの流れ</h3><ul><li>開始時に<b>資金</b>が入ります（本営＋5、村1つにつき＋2、8ターンごとに＋1）。自軍の村・本営にいる兵はHPが3回復します。</li><li>兵は1ターンに「移動→攻撃」または「攻撃のみ」が可能。同じ兵は1回だけ動けます。</li><li><b>採用</b>で自軍の本営マス・その隣接マス、または占領済みの村に新しい兵を配置（配置したターンは動けません）。騎兵は山に置けません。</li></ul><h3>兵科</h3>{units}<p>騎兵は歩兵に強いが<b>槍兵にとても弱い</b>。槍兵は騎兵に強く、弓兵は歩兵に強い、という三すくみです。弓兵は遠隔攻撃で反撃を受けません。</p><p>隣接して攻撃すると、生き残った相手から<b>同じ強さの反撃</b>を受けます。有利な地形で撃ち返すのが定石です。</p><h3>地形</h3><ul><li>森（移動コスト2・防御+2）、山（コスト3・防御+3・騎兵は入れない）、河は渡れません。</li><li>村は勝利条件に数えられず、主に<b>収入源</b>。兵が乗ると自軍の村になります。</li></ul><h3>難易度</h3><ul><li><b>やさしい</b>：敵軍の資金が少なく、時々うっかり手を打ちます。</li><li><b>ふつう</b>：敵軍はやや潤沢な資金で、たまに失敗します。</li><li><b>むずかしい</b>：敵軍の資金は自軍の約1.6倍。ミスをせず、本営への迂回も狙ってきます。</li></ul><h3>ステージと保存</h3><ul><li>「ステージ」で盤面を選べます。あるステージに勝つと次のステージが解禁されます。</li><li>進行状況は<b>この端末の中（ブラウザの保存領域）</b>に自動保存されます。ネットワークには送信しません。</li></ul><h3>操作</h3><ul><li>兵をタップ→緑マスへ移動、黄色マスへ攻撃。もう一度その兵をタップで解除。</li><li>キーボード：スペース=ターン終了 / U=戻す / Esc=解除。</li><li>画面が小さいときは盤面を指でスライドして、隠れた行まで見られます。</li><li>効果が不要なときは画面下の「音」ボタンで OFF にできます（設定は保存されます）。</li></ul>'
+ help_html:'<h2>遊び方</h2><p>盤面で青軍（あなた）と赤軍（CPU）が争うターン制ストラテジーです。</p><h3>勝利条件</h3><ul><li>敵の<b>本営</b>を破壊する。敵本営の隣接マスから攻撃できます。13ターン目から本営へのダメージが2倍、25ターン目から3倍…と増えていくので、長引けば必ず決着します。30ターン目以降は<b>兵へのダメージ</b>も少しずつ増えていきます（最大約3.5倍）ので、膠着状態が続けば消耗戦に決着が寄っていきます。</li><li>または、敵が兵を1つも持たず、新たに調達する資金もない状態にする。</li></ul><h3>1ターンの流れ</h3><ul><li>開始時に<b>資金</b>が入ります（本営＋5、村1つにつき＋2、8ターンごとに＋1）。自軍の村・本営にいる兵はHPが3回復します。</li><li>兵は1ターンに「移動→攻撃」または「攻撃のみ」が可能。同じ兵は1回だけ動けます。</li><li><b>採用</b>で自軍の本営マス・その隣接マス、または占領済みの村に新しい兵を配置（配置したターンは動けません）。騎兵は山に置けません。</li></ul><h3>兵科</h3>{units}<p>騎兵は歩兵に強いが<b>槍兵にとても弱い</b>。槍兵は騎兵に強く、弓兵は歩兵に強い、という三すくみです。弓兵は遠隔攻撃で反撃を受けません。</p><p>隣接して攻撃すると、生き残った相手から<b>同じ強さの反撃</b>を受けます。有利な地形で撃ち返すのが定石です。</p><h3>地形</h3><ul><li>森（移動コスト2・防御+2）、山（コスト3・防御+3・騎兵は入れない）、河は渡れません。</li><li>村は勝利条件に数えられず、主に<b>収入源</b>。兵が乗ると自軍の村になります。</li></ul><h3>難易度</h3><ul><li><b>やさしい</b>：敵軍の資金が少なく、時々うっかり手を打ちます。</li><li><b>ふつう</b>：敵軍はやや潤沢な資金で、たまに失敗します。</li><li><b>むずかしい</b>：敵軍の資金は自軍の約1.6倍。ミスをせず、本営への迂回も狙ってきます。</li></ul><h3>ステージと保存</h3><ul><li>「ステージ」で盤面を選べます。あるステージに勝つと次のステージが解禁されます。</li><li>進行状況は<b>この端末の中（ブラウザの保存領域）</b>に自動保存されます。ネットワークには送信しません。</li></ul><h3>操作</h3><ul><li>兵をタップ→緑マスへ移動、黄色マスへ攻撃。もう一度その兵をタップで解除。</li><li>キーボード：スペース=ターン終了 / U=戻す / Esc=解除。</li><li>画面が小さいときは盤面を指でスライドして、隠れた行まで見られます。</li><li>効果が不要なときは画面下の「音」ボタンで OFF にできます（設定は保存されます）。</li></ul>'
 },
 en:{
  app_title:'Two Crowns ― Turn-Based Tactics',
@@ -363,7 +432,7 @@ en:{
  log_summon_foe:'{s} deploys a {u}',
  log_nocoins:'Not enough coin for {u} (needs {cost})',
  log_cap:'Army is at full size',
- help_html:'<h2>How to play</h2><p>A turn-based tactics duel on a 9 by 9 map: your blue army against the red CPU army.</p><h3>Winning</h3><ul><li>Destroy the enemy <b>base</b>. You may attack it from any tile next to it. Damage dealt to a base doubles from turn 13 and triples from turn 25, so long games always reach a decision. From turn 30 damage to units also grows slowly (up to about 3.5x), so a stalled front line turns into a war of attrition.</li><li>Or leave the enemy with no units and too little coin to recruit one.</li></ul><h3>Each turn</h3><ul><li>Income arrives first (base +5, +2 per village you own, +1 every 8 turns). Units standing on your own village or base heal 3 HP.</li><li>A unit may move then attack, or attack only. Each unit acts once per turn.</li><li><b>Recruit</b> puts a fresh unit on your base tile, a tile next to it, or a village you own (it cannot act the turn it arrives). Cavalry cannot be placed on mountains.</li></ul><h3>Units</h3>{units}<p>Cavalry rides down infantry but is torn apart by <b>spears</b>. Spears beat cavalry, archers beat infantry. Ranged attacks draw no counterattack.</p><p>Attack a neighbour and the survivor hits back with <b>full strength</b>, so favour good terrain.</p><h3>Terrain</h3><ul><li>Forest: move cost 2, defence +2. Mountain: cost 3, defence +3, cavalry cannot enter. Rivers cannot be crossed.</li><li>Villages are income. A unit standing on one claims it for its side.</li></ul><h3>Difficulty</h3><ul><li><b>Easy</b>: the CPU is short of coin and often makes careless moves.</li><li><b>Normal</b>: the CPU has somewhat more coin and slips now and then.</li><li><b>Hard</b>: the CPU earns about 1.6 times your base income, never blunders and will try to flank toward your base.</li></ul><h3>Stages and saving</h3><ul><li>Open <b>Stages</b> to pick a map. Win a stage to unlock the next one.</li><li>Progress is saved automatically <b>in this browser on this device</b>. Nothing is sent anywhere.</li></ul><h3>Controls</h3><ul><li>Tap a unit, then a green tile to move or a yellow tile to attack. Tap the unit again to cancel.</li><li>Keyboard: Space = end turn, U = undo, Esc = cancel.</li><li>On a small screen you can swipe the board to reach the rows hidden behind the bars.</li><li>Use the Sound button on the bottom bar to mute the sound effects. The setting is remembered.</li></ul>'
+ help_html:'<h2>How to play</h2><p>A turn-based tactics duel on a map: your blue army against the red CPU army.</p><h3>Winning</h3><ul><li>Destroy the enemy <b>base</b>. You may attack it from any tile next to it. Damage dealt to a base doubles from turn 13 and triples from turn 25, so long games always reach a decision. From turn 30 damage to units also grows slowly (up to about 3.5x), so a stalled front line turns into a war of attrition.</li><li>Or leave the enemy with no units and too little coin to recruit one.</li></ul><h3>Each turn</h3><ul><li>Income arrives first (base +5, +2 per village you own, +1 every 8 turns). Units standing on your own village or base heal 3 HP.</li><li>A unit may move then attack, or attack only. Each unit acts once per turn.</li><li><b>Recruit</b> puts a fresh unit on your base tile, a tile next to it, or a village you own (it cannot act the turn it arrives). Cavalry cannot be placed on mountains.</li></ul><h3>Units</h3>{units}<p>Cavalry rides down infantry but is torn apart by <b>spears</b>. Spears beat cavalry, archers beat infantry. Ranged attacks draw no counterattack.</p><p>Attack a neighbour and the survivor hits back with <b>full strength</b>, so favour good terrain.</p><h3>Terrain</h3><ul><li>Forest: move cost 2, defence +2. Mountain: cost 3, defence +3, cavalry cannot enter. Rivers cannot be crossed.</li><li>Villages are income. A unit standing on one claims it for its side.</li></ul><h3>Difficulty</h3><ul><li><b>Easy</b>: the CPU is short of coin and often makes careless moves.</li><li><b>Normal</b>: the CPU has somewhat more coin and slips now and then.</li><li><b>Hard</b>: the CPU earns about 1.6 times your base income, never blunders and will try to flank toward your base.</li></ul><h3>Stages and saving</h3><ul><li>Open <b>Stages</b> to pick a map. Win a stage to unlock the next one.</li><li>Progress is saved automatically <b>in this browser on this device</b>. Nothing is sent anywhere.</li></ul><h3>Controls</h3><ul><li>Tap a unit, then a green tile to move or a yellow tile to attack. Tap the unit again to cancel.</li><li>Keyboard: Space = end turn, U = undo, Esc = cancel.</li><li>On a small screen you can swipe the board to reach the rows hidden behind the bars.</li><li>Use the Sound button on the bottom bar to mute the sound effects. The setting is remembered.</li></ul>'
 },
 zh:{
  app_title:'双雄争霸 ― 回合制策略',
@@ -407,7 +476,7 @@ zh:{
  log_summon_foe:'{s}部署了{u}',
  log_nocoins:'资金不足（{u}需要 {cost}）',
  log_cap:'兵力已达上限',
- help_html:'<h2>玩法说明</h2><p>9&times;9 战场上的回合制策略对战：蓝军（你）对抗红军（电脑）。</p><h3>胜利条件</h3><ul><li>摧毁敌方<b>本营</b>。可从紧邻本营的格子发起攻击。第13回合起对本营的伤害翻倍，第25回合起三倍，因此战局必定会结束。第30回合起，<b>对兵种的伤害</b>也会逐渐提高（最多约3.5倍），僵持越久消耗战越激烈。</li><li>或者让敌方既无兵力，又没有足够的资金招募。</li></ul><h3>每回合流程</h3><ul><li>回合开始时获得<b>资金</b>（本营 +5，己方每个村庄 +2，每 8 回合再 +1）。位于己方村庄或本营的兵种回复 3 点 HP。</li><li>每个兵种每回合可「移动后攻击」或「仅攻击」，且只能行动一次。</li><li><b>招募</b>可把新兵放在本营格、其相邻格或已占领的村庄（放置当回合不能行动）。骑兵不能放在山地。</li></ul><h3>兵种</h3>{units}<p>骑兵克制步兵，但<b>极怕枪兵</b>；枪兵克骑兵，弓兵克步兵。远程攻击不会遭到反击。</p><p>近战攻击后，存活的目标会以<b>全额火力</b>反击，因此请善用地形。</p><h3>地形</h3><ul><li>森林：移动消耗 2、防御 +2。山地：消耗 3、防御 +3、骑兵不可进入。河流无法渡过。</li><li>村庄是收入来源，兵种站上去即归己方所有。</li></ul><h3>难度</h3><ul><li><b>简单</b>：电脑资金较少，且常走出失误的招。</li><li><b>普通</b>：电脑资金较为充裕，偶尔失误。</li><li><b>困难</b>：电脑基础资金约为你方的 1.6 倍，不会失误，并会迂回突袭你的本营。</li></ul><h3>关卡与存档</h3><ul><li>点击「关卡」选择地图，通关后解锁下一关。</li><li>进度会自动保存在<b>本机浏览器</b>的存储区，不会发送到网络。</li></ul><h3>操作</h3><ul><li>点击兵种，再点绿色格移动、黄色格攻击；再次点击该兵种即取消。</li><li>键盘：空格＝结束回合，U＝撤销，Esc＝取消。</li><li>屏幕较小时可滑动棋盘，查看被上下工具条遮住的行。</li><li>不需要音效时，点击下方「音效」按钮即可关闭（设置会被保存）。</li></ul>'
+ help_html:'<h2>玩法说明</h2><p>战场上的回合制策略对战：蓝军（你）对抗红军（电脑）。</p><h3>胜利条件</h3><ul><li>摧毁敌方<b>本营</b>。可从紧邻本营的格子发起攻击。第13回合起对本营的伤害翻倍，第25回合起三倍，因此战局必定会结束。第30回合起，<b>对兵种的伤害</b>也会逐渐提高（最多约3.5倍），僵持越久消耗战越激烈。</li><li>或者让敌方既无兵力，又没有足够的资金招募。</li></ul><h3>每回合流程</h3><ul><li>回合开始时获得<b>资金</b>（本营 +5，己方每个村庄 +2，每 8 回合再 +1）。位于己方村庄或本营的兵种回复 3 点 HP。</li><li>每个兵种每回合可「移动后攻击」或「仅攻击」，且只能行动一次。</li><li><b>招募</b>可把新兵放在本营格、其相邻格或已占领的村庄（放置当回合不能行动）。骑兵不能放在山地。</li></ul><h3>兵种</h3>{units}<p>骑兵克制步兵，但<b>极怕枪兵</b>；枪兵克骑兵，弓兵克步兵。远程攻击不会遭到反击。</p><p>近战攻击后，存活的目标会以<b>全额火力</b>反击，因此请善用地形。</p><h3>地形</h3><ul><li>森林：移动消耗 2、防御 +2。山地：消耗 3、防御 +3、骑兵不可进入。河流无法渡过。</li><li>村庄是收入来源，兵种站上去即归己方所有。</li></ul><h3>难度</h3><ul><li><b>简单</b>：电脑资金较少，且常走出失误的招。</li><li><b>普通</b>：电脑资金较为充裕，偶尔失误。</li><li><b>困难</b>：电脑基础资金约为你方的 1.6 倍，不会失误，并会迂回突袭你的本营。</li></ul><h3>关卡与存档</h3><ul><li>点击「关卡」选择地图，通关后解锁下一关。</li><li>进度会自动保存在<b>本机浏览器</b>的存储区，不会发送到网络。</li></ul><h3>操作</h3><ul><li>点击兵种，再点绿色格移动、黄色格攻击；再次点击该兵种即取消。</li><li>键盘：空格＝结束回合，U＝撤销，Esc＝取消。</li><li>屏幕较小时可滑动棋盘，查看被上下工具条遮住的行。</li><li>不需要音效时，点击下方「音效」按钮即可关闭（设置会被保存）。</li></ul>'
 }
 };
 var SIDE_KEYS={a:1,d:1,s:1,foe:1,side:1,l:1,w:1}, UNIT_KEYS={au:1,du:1,u:1};
