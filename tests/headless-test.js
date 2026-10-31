@@ -159,7 +159,7 @@ function checkInvariants(tag) {
     if (!Number.isFinite(u.hp) || u.hp <= 0) throw new Error(tag + ': HP異常 ' + u.type + '=' + u.hp);
     if (u.hp > T.hp) throw new Error(tag + ': HP上限超過 ' + u.type + ' ' + u.hp + '/' + T.hp);
     if (!Number.isInteger(u.x) || !Number.isInteger(u.y)) throw new Error(tag + ': 座標が整数でない');
-    if (u.x < 0 || u.y < 0 || u.x >= 9 || u.y >= 9) throw new Error(tag + ': 盤外 ' + u.x + ',' + u.y);
+    if (u.x < 0 || u.y < 0 || u.x >= g('COLS') || u.y >= g('ROWS')) throw new Error(tag + ': 盤外 ' + u.x + ',' + u.y);
     const tile = st.tiles[u.y][u.x];
     if (tile.t === 'water') throw new Error(tag + ': 河の上にUnits');
     if (tile.t === 'mountain' && T.noMountain) throw new Error(tag + ': 騎兵が山にいる');
@@ -195,7 +195,7 @@ function actUnit(u) {
   const reach = g('reachable')(u);
   let best = null;
   for (const key in reach) {
-    const k = +key, x = k % 9, y = Math.floor(k / 9);
+    const k = +key, x = k % g('COLS'), y = Math.floor(k / g('COLS'));
     for (const t of g('targetsFrom')(u, x, y)) {
       const sc = g('scoreAttack')(u, x, y, t);
       if (!best || sc > best.sc) best = { sc, x, y, t };
@@ -210,7 +210,7 @@ function actUnit(u) {
   if (!pts.length) { u.acted = true; return; }
   let mv = null;
   for (const key in reach) {
-    const k = +key, x = k % 9, y = Math.floor(k / 9);
+    const k = +key, x = k % g('COLS'), y = Math.floor(k / g('COLS'));
     const sc = g('advanceScore')(u, x, y, pts);
     if (!mv || sc > mv.sc) mv = { sc, x, y };
   }
@@ -289,9 +289,9 @@ async function playOne(diff, maxTurns, stage) {
   if (S().units.length !== want) throw new Error(st + ': 初期兵数が配置表と違う ' + S().units.length + '<>' + want);
   if (S().stage !== st) throw new Error('ステージが切り替わっていない: ' + S().stage);
   if (g('unitsOf')(P).length > g('UNIT_CAP')) throw new Error(st + ': 初期兵数が兵数上限超え');
-  // 村の配置が上下対称か
-  for (let y = 0; y < 4; y++) for (let x = 0; x < 9; x++) {
-    if (S().tiles[y][x].t !== S().tiles[8 - y][x].t) throw new Error(st + ': 地形が上下対称でない');
+  // 地形が180度回転対称か
+  for (let y = 0; y < g('ROWS'); y++) for (let x = 0; x < g('COLS'); x++) {
+    if (S().tiles[y][x].t !== S().tiles[g('ROWS') - 1 - y][g('COLS') - 1 - x].t) throw new Error(st + ': 地形が180度対称でない');
   }
   while (!S().over && S().turn <= maxTurns) {
     // 自軍ターン
@@ -369,7 +369,7 @@ function checkReach() {
     const r = g('reachable')(u);
     let n = 0;
     for (const key in r) {
-      const k = +key, x = k % 9, y = Math.floor(k / 9);
+      const k = +key, x = k % g('COLS'), y = Math.floor(k / g('COLS'));
       if (x === u.x && y === u.y) continue; // 開始マスは本人が占有しているので passable しない
       if (r[key] > g('TYPES')[u.type].move) throw new Error('移動コストが移動力超過');
       if (!g('passable')(u, x, y)) throw new Error('到達マスが通行不可');
@@ -396,9 +396,15 @@ function checkReach() {
 /* ---------- ステージ定義の健全性 ---------- */
 function checkStages() {
   const stages = g('STAGES');
+  let previousSize = 0;
   for (const st of stages) {
     g('newGame')('normal', st.key);
     const tiles = S().tiles, bp = g('BASE_POS');
+    if (g('COLS') !== st.size || g('ROWS') !== st.size || tiles.length !== st.size) {
+      throw new Error(st.key + ': 盤面サイズがステージ定義と違う');
+    }
+    if (st.size <= previousSize) throw new Error(st.key + ': ステージごとに盤面が大きくなっていない');
+    previousSize = st.size;
     for (const s of [P, E]) {
       const b = bp[s];
       if (!b) throw new Error(st.key + ': 本営座標が無い');
@@ -406,10 +412,13 @@ function checkStages() {
         throw new Error(st.key + ': 本営マスが不正 ' + s + ' ' + b.x + ',' + b.y);
       }
     }
-    // 上下対称
-    for (let y = 0; y < 4; y++) for (let x = 0; x < 9; x++) {
-      if (tiles[y][x].t !== tiles[8 - y][x].t) throw new Error(st.key + ': 地形が上下対称でない');
+    // 180度回転対称
+    for (let y = 0; y < g('ROWS'); y++) for (let x = 0; x < g('COLS'); x++) {
+      if (tiles[y][x].t !== tiles[g('ROWS') - 1 - y][g('COLS') - 1 - x].t) throw new Error(st.key + ': 地形が180度対称でない');
     }
+    // 本営は隅ではなく、Pが左下・Eが右上
+    if (!(bp.p.x >= 2 && bp.p.y <= g('ROWS') - 3 && bp.p.x < g('COLS') / 2 && bp.p.y > g('ROWS') / 2)) throw new Error(st.key + ': Pの本営が左下付近でない');
+    if (!(bp.e.x <= g('COLS') - 3 && bp.e.y >= 2 && bp.e.x > g('COLS') / 2 && bp.e.y < g('ROWS') / 2)) throw new Error(st.key + ': Eの本営が右上付近でない');
     // 初期配置マス
     const sp = g('SPAWN');
     if (!sp.p.length || sp.p.length !== sp.e.length) throw new Error(st.key + ': 初期配置が不対称');
@@ -420,7 +429,8 @@ function checkStages() {
         if (tile.t === 'water') throw new Error(st.key + ': 初期配置が河の上');
         if (tile.t === 'base') throw new Error(st.key + ': 初期配置が本営マス');
         if (tile.t === 'mountain' && T.noMountain) throw new Error(st.key + ': 騎兵の初期配置が山');
-        if (q.y < 4 && s === E && tiles[8 - q.y][q.x].t === 'water') throw new Error(st.key + ': 初期配置が鏡像側で河');
+        const rotTile = tiles[g('ROWS') - 1 - q.y][g('COLS') - 1 - q.x];
+        if (rotTile.t === 'water') throw new Error(st.key + ': 初期配置が回転側で河');
       }
       if (sp[s].length > g('UNIT_CAP')) throw new Error(st.key + ': 初期兵数が上限超え');
     }
@@ -432,7 +442,7 @@ function checkStages() {
       const [x, y] = q2.pop();
       for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
         const nx = x + dx, ny = y + dy, k = nx + ',' + ny;
-        if (nx < 0 || ny < 0 || nx > 8 || ny > 8 || seen.has(k)) continue;
+        if (nx < 0 || ny < 0 || nx >= g('COLS') || ny >= g('ROWS') || seen.has(k)) continue;
         const tt = tiles[ny][nx].t;
         if (tt === 'water') continue;
         seen.add(k);
@@ -581,11 +591,11 @@ function checkLayout() {
   if (!wrap) throw new Error('#wrap が無い');
   const body = sandbox.document.body;
   const hint = els.get('scrollHint');
-  const at = (x, y) => ctx.UI.cells[y * 9 + x];
+  const at = (x, y) => ctx.UI.cells[y * g('COLS') + x];
   const cellPx = () => parseInt(ctx.document.documentElement.style.getPropertyValue('--cell'), 10);
 
   //十分な空間がある端末：中央配置でスクロールは不要
-  wrap.clientWidth = 900; wrap.clientHeight = 900;
+  wrap.clientWidth = 2200; wrap.clientHeight = 2200;
   g('fit')();
   must(cellPx() === g('MAX_CELL'), '広い画面でセルが最大サイズにならない: ' + cellPx());
   must(wrap.classList.contains('fit'), '広い画面で中央配置（fit）になっていない');
@@ -621,7 +631,7 @@ function checkLayout() {
   S().sel = null;
 
   //収まるサイズではスクロール操作をしない
-  wrap.clientWidth = 900; wrap.clientHeight = 900;
+  wrap.clientWidth = 2200; wrap.clientHeight = 2200;
   g('fit')();
   const b1 = e0._scrolled;
   S().sel = u0.id;
@@ -723,8 +733,8 @@ async function checkUi() {
     hs.forEach(f => f.call(e, ev || { preventDefault() {} }));
   };
   const byId = id => S().units.filter(v => v.id === id)[0];
-  const cell = (x, y) => ctx.UI.cells[y * 9 + x];
-  if (ctx.UI.cells.length !== 81) throw new Error('盤面セルが ' + ctx.UI.cells.length + ' 個しかない');
+  const cell = (x, y) => ctx.UI.cells[y * g('COLS') + x];
+  if (ctx.UI.cells.length !== g('COLS') * g('ROWS')) throw new Error('盤面セル数が盤面サイズと違う: ' + ctx.UI.cells.length);
 
   // 難易度セレクト → 再開始ボタン
   el('diffSel').value = 'normal';
@@ -738,7 +748,7 @@ async function checkUi() {
   const reach = g('reachable')(u0);
   let dest = null;
   for (const key in reach) {
-    const k = +key, x = k % 9, y = (k - (k % 9)) / 9;
+    const k = +key, x = k % g('COLS'), y = Math.floor(k / g('COLS'));
     if (x === u0.x && y === u0.y) continue;
     if (!dest || reach[key] < dest.c) dest = { x, y, c: reach[key] };
   }
@@ -843,9 +853,14 @@ async function checkUi() {
   checkSound();
   console.log('OK  サウンド（合成音・ON/OFF保存）');
 
-  // 各ステージで1試合ずつ（クラッシュ・不変条件崩れの有無）
+  // 各ステージで1試合ずつ（クラッシュ・不変条件崩れの有無）。AI同士の膠着は乱数次第なので3回まで再試行する
   for (const st of g('STAGES')) {
-    const r = await playOne('hard', 90, st.key);
+    let r = null;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      r = await playOne('hard', 90, st.key);
+      if (r.over) break;
+      if (attempt < 3) console.log('  stage ' + st.key + ': 未決着、再試行 ' + attempt);
+    }
     console.log('  stage ' + st.key + ': ' + (r.over ? (r.winner === P ? '自軍勝' : '敵軍勝') : '未決着') +
       ' ' + r.turns + 'ターン  cap=' + g('UNIT_CAP') + ' hp=' + g('BASE_HP') + '  ' + (r.reason || ''));
     if (!r.over) {

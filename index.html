@@ -6,9 +6,10 @@
 <title>二王国の覇権 ― ターン制ストラテジー</title>
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{color-scheme:dark;--ink:#09111d;--panel:#111d2b;--panel-raised:#18283a;--line:#30465b;--gold:#e5b968;--muted:#9aafbd}
 html,body{height:100%;-webkit-text-size-adjust:100%}
 body{
-  margin:0;background:#0b1220;color:#e6edf7;
+  margin:0;background:radial-gradient(ellipse at 50% -18%,#263b4a 0,#111d2a 42%,#09111d 78%);color:#e8edf0;
   font-family:"Hiragino Kaku Gothic ProN","Yu Gothic UI","Meiryo",system-ui,sans-serif;
   display:flex;flex-direction:column;overflow:hidden;overscroll-behavior:none;
   touch-action:manipulation;-webkit-user-select:none;user-select:none;
@@ -17,21 +18,21 @@ body{
 #hud{
   display:flex;gap:6px;align-items:stretch;padding:6px 8px;
   padding-top:calc(6px + env(safe-area-inset-top));
-  background:#0e1729;border-bottom:1px solid #1e2c46;flex:0 0 auto;
+  background:linear-gradient(180deg,rgba(18,31,45,.98),rgba(12,23,35,.96));border-bottom:1px solid #314356;flex:0 0 auto;
 }
-.side{flex:1 1 0;min-width:0;background:#131f36;border-radius:8px;padding:5px 7px;font-size:11px;line-height:1.35}
-.side.p{border-left:3px solid #3b82f6}
-.side.e{border-left:3px solid #ef4444}
-.side.active{background:#1c2c4b;box-shadow:0 0 0 1px #3f5b8a inset}
+.side{flex:1 1 0;min-width:0;background:linear-gradient(135deg,#18283a,#111d2b);border:1px solid #263a4d;border-radius:10px;padding:6px 9px;font-size:11px;line-height:1.35;box-shadow:0 3px 10px rgba(0,0,0,.16)}
+.side.p{border-left:3px solid #69b4df}
+.side.e{border-left:3px solid #e47a68}
+.side.active{background:linear-gradient(135deg,#20364a,#18283a);box-shadow:0 0 0 1px #607b8b inset,0 0 14px rgba(105,180,223,.12)}
 .sname{font-weight:700;font-size:11px;letter-spacing:.04em;opacity:.9}
 .stats{display:flex;gap:8px;flex-wrap:wrap;margin-top:2px;color:#a9bcd8;font-variant-numeric:tabular-nums}
-.bar{height:5px;background:#0a1120;border-radius:3px;overflow:hidden;margin-top:4px}
+.bar{height:5px;background:#09111d;border-radius:3px;overflow:hidden;margin-top:4px}
 .bar>b{display:block;height:100%;background:#f0b429;border-radius:3px;transition:width .2s}
-.side.e .bar>b{background:#ef4444}
-.side.p .bar>b{background:#3b82f6}
+.side.e .bar>b{background:linear-gradient(90deg,#bd514b,#ef9a73)}
+.side.p .bar>b{background:linear-gradient(90deg,#397db1,#7bc3e3)}
 #mid{flex:0 0 auto;display:flex;flex-direction:column;gap:4px;align-items:center;justify-content:center;min-width:96px}
-#turnNo{font-size:12px;font-weight:700;color:#cbd8ec;white-space:nowrap}
-#phase{font-size:10px;color:#8fa5c4;white-space:nowrap}
+#turnNo{font-size:12px;font-weight:800;color:#f0d291;white-space:nowrap}
+#phase{font-size:10px;color:#a8bbc6;white-space:nowrap}
 /* ---------- board ---------- */
 #wrapOuter{flex:1 1 auto;min-height:0;position:relative}
 #wrap{
@@ -39,7 +40,7 @@ body{
   -webkit-overflow-scrolling:touch;padding:4px;scrollbar-width:thin;scrollbar-color:#3c5b88 transparent;
 }
 #wrap.fit{align-items:center;justify-content:center}
-#board{flex:0 0 auto;display:grid;gap:2px;padding:3px;background:#1c2942;border-radius:9px;box-shadow:0 6px 22px rgba(0,0,0,.45)}
+#board{flex:0 0 auto;display:grid;gap:3px;padding:6px;background:linear-gradient(145deg,#293b49,#14222e);border:1px solid #60715d;border-radius:12px;box-shadow:0 12px 32px rgba(0,0,0,.48),inset 0 1px rgba(255,255,255,.08)}
 #wrap::-webkit-scrollbar{width:9px;height:9px}
 #wrap::-webkit-scrollbar-track{background:rgba(0,0,0,.22);border-radius:5px}
 #wrap::-webkit-scrollbar-thumb{background:#3c5b88;border-radius:5px;border:2px solid #0b1220}
@@ -50,7 +51,7 @@ body{
 }
 body.scrolling #scrollHint{display:flex}
 .cell{
-  position:relative;width:var(--cell,44px);height:var(--cell,44px);border-radius:3px;
+  position:relative;width:var(--cell,44px);height:var(--cell,44px);border-radius:5px;
   overflow:hidden;background:#3a5240;display:flex;align-items:center;justify-content:center;cursor:pointer;
   isolation:isolate;box-shadow:inset 0 1px 2px rgba(255,255,255,.08),inset 0 -2px 3px rgba(0,0,0,.16);
 }
@@ -139,12 +140,12 @@ body.scrolling #scrollHint{display:flex}
 .cell.sel{outline:2px solid #fde68a;outline-offset:-2px;z-index:2}
 /* ---------- units ---------- */
 .chip{
-  position:absolute;inset:11%;z-index:2;border-radius:7px;display:flex;align-items:center;justify-content:center;
-  font-weight:800;font-size:calc(var(--cell,44px)*.42);color:#fff;line-height:1;
-  box-shadow:0 2px 4px rgba(0,0,0,.45);
+  position:absolute;inset:4%;z-index:2;display:flex;align-items:center;justify-content:center;
 }
-.chip.p{background:linear-gradient(#2f6db3,#173c63);border:2px solid #74b0f5}
-.chip.e{background:linear-gradient(#c04141,#6d1f1f);border:2px solid #f58f8f}
+.chip::before{content:"";position:absolute;left:12%;right:12%;bottom:9%;height:24%;border-radius:50%;background:rgba(0,0,0,.35)}
+.chip.p::before{background:rgba(59,130,196,.55)}
+.chip.e::before{background:rgba(194,69,69,.55)}
+.spr{position:relative;width:88%;height:88%;image-rendering:pixelated;pointer-events:none;filter:drop-shadow(0 2px 1px rgba(0,0,0,.45))}
 .chip.spent{filter:grayscale(.65);opacity:.6}
 .hpb{position:absolute;left:8%;right:8%;bottom:6%;height:12%;min-height:3px;background:#0a1120;border-radius:2px;overflow:hidden}
 .hpb>b{display:block;height:100%;background:#5eead4}
@@ -157,32 +158,32 @@ body.scrolling #scrollHint{display:flex}
 @keyframes pop{0%{transform:translateY(6px) scale(.7);opacity:0}25%{opacity:1}100%{transform:translateY(-14px) scale(1.15);opacity:0}}
 /* ---------- log ---------- */
 #log{
-  flex:0 0 auto;min-height:30px;padding:3px 10px;font-size:11px;color:#9fb3cf;
-  background:#0e1729;border-top:1px solid #1e2c46;display:flex;flex-direction:column;justify-content:center;gap:1px;
+  flex:0 0 auto;min-height:30px;padding:4px 12px;font-size:11px;color:#a9bac1;
+  background:rgba(13,24,35,.96);border-top:1px solid #2a3c4b;display:flex;flex-direction:column;justify-content:center;gap:1px;
 }
 #log div:nth-child(2){opacity:.55}
 #log div:nth-child(3){opacity:.3}
 /* ---------- control bar ---------- */
 #bar{
   flex:0 0 auto;display:flex;gap:6px;align-items:center;padding:6px 8px;flex-wrap:wrap;
-  padding-bottom:calc(6px + env(safe-area-inset-bottom));background:#0e1729;border-top:1px solid #1e2c46;
+  padding-bottom:calc(6px + env(safe-area-inset-bottom));background:linear-gradient(180deg,#142332,#0d1823);border-top:1px solid #304354;
 }
 button{
-  font-family:inherit;font-size:13px;font-weight:700;color:#e6edf7;background:#243b5e;border:1px solid #3c5b88;
-  border-radius:8px;padding:9px 12px;cursor:pointer;min-height:40px;
+  font-family:inherit;font-size:13px;font-weight:700;color:#e8edf0;background:linear-gradient(180deg,#304b5b,#213747);border:1px solid #496375;
+  border-radius:9px;padding:9px 12px;cursor:pointer;min-height:40px;box-shadow:0 2px 5px rgba(0,0,0,.18);
 }
-button:active{transform:translateY(1px);background:#2f4c76}
+button:active{transform:translateY(1px);background:#38576a}
 button[disabled]{opacity:.4;cursor:default;transform:none}
-button.mini{font-size:11px;font-weight:600;padding:8px 9px;min-height:36px;background:#18263c;border-color:#2a3d5c}
+button.mini{font-size:11px;font-weight:600;padding:8px 9px;min-height:36px;background:#1a2b3a;border-color:#354b5b}
 #soundBtn{min-width:76px}
 #soundBtn.off{color:#8fa5c4;border-color:#23324a}
-button.big{background:#1d6b45;border-color:#35a06b;flex:0 0 auto}
-button.recruit{padding:8px 9px;min-height:40px;background:#18263c;border-color:#2a3d5c;font-weight:700;line-height:1.1}
+button.big{background:linear-gradient(180deg,#357b59,#20543e);border-color:#5a9c75;flex:0 0 auto}
+button.recruit{padding:8px 9px;min-height:40px;background:#1a2b3a;border-color:#354b5b;font-weight:700;line-height:1.1}
 button.recruit b{display:block;font-size:15px}
 button.recruit span{font-size:10px;font-weight:600;color:#f0c674}
-button.recruit.on{background:#3f6d3a;border-color:#8fd07a;color:#fff}
+button.recruit.on{background:#3d6545;border-color:#a6c58e;color:#fff}
 select{
-  font-family:inherit;font-size:11px;color:#cbd8ec;background:#18263c;border:1px solid #2a3d5c;
+  font-family:inherit;font-size:11px;color:#d4dfe2;background:#182a38;border:1px solid #354b5b;
   border-radius:8px;padding:8px 6px;min-height:36px;
 }
 .spacer{flex:1 1 auto}
@@ -192,7 +193,7 @@ select{
   padding:16px;z-index:20;overflow:auto;
 }
 .sheet{
-  max-width:460px;width:100%;background:#101c30;border:1px solid #2b4166;border-radius:14px;padding:16px 18px;
+  max-width:460px;width:100%;background:linear-gradient(150deg,#1b2c3b,#101c28);border:1px solid #465d69;border-radius:16px;padding:18px 20px;
   max-height:calc(100dvh - 32px);overflow:auto;
 }
 .sheet h2{margin:0 0 10px;font-size:17px}
@@ -232,6 +233,7 @@ button.stcard .txt{flex:1 1 auto;min-width:0}
 button.stcard .nm{display:block;font-size:13px;font-weight:700;color:#e6edf7}
 button.stcard .ds{display:block;font-size:10.5px;font-weight:500;color:#8fa5c4;line-height:1.4;margin-top:2px}
 button.stcard .bd{flex:0 0 auto;font-size:10px;font-weight:700;color:#f0c674;white-space:nowrap;text-align:right}
+button.stcard .sz{display:inline-block;margin-left:7px;padding:2px 6px;border:1px solid #465a62;border-radius:999px;color:#d7c18e;font-size:9px;letter-spacing:.03em;white-space:nowrap}
 button.stcard[disabled]{opacity:.42}
 button.stcard.cur{border-color:#5aa9e6;box-shadow:0 0 0 1px #2c4f74 inset}
 .note{font-size:10.5px;color:#7f93b0;line-height:1.5;margin-top:10px}
@@ -372,7 +374,7 @@ ja:{
  st_pass:'山の峠', d_pass:'山岳が騎兵を分断する',
  st_granary:'穀倉地帯', d_granary:'村が多く資金勝負',
  st_canyon:'峡谷', d_canyon:'狭い回廊の接近戦',
- st_coast:'沿岸の道', d_coast:'本営は盤面の左端',
+ st_coast:'沿岸の道', d_coast:'海へ張り出す海岸線の細い陸路',
  log_start:'戦闘開始。敵本営を攻略せよ。',
  log_income:'{side}の収入 +{inc}（資金 {coins}）',
  log_undo:'一手戻した',
@@ -416,7 +418,7 @@ en:{
  st_pass:'Mountain pass', d_pass:'Ridges block cavalry',
  st_granary:'Granary fields', d_granary:'Many villages, rich income',
  st_canyon:'The canyon', d_canyon:'Narrow corridors, close fight',
- st_coast:'Coastal road', d_coast:'Both bases sit on the left edge',
+ st_coast:'Coastal road', d_coast:'A narrow land strip between two seas',
  log_start:'Battle begins. Take the enemy base.',
  log_income:'{side} gains +{inc} coin (total {coins})',
  log_undo:'One move undone',
@@ -460,7 +462,7 @@ zh:{
  st_pass:'山道隘口', d_pass:'山脉阻断骑兵',
  st_granary:'谷仓地带', d_granary:'村落众多拼经济',
  st_canyon:'峡谷', d_canyon:'狭窄走廊近战',
- st_coast:'海岸通道', d_coast:'本营位于盘面左缘',
+ st_coast:'海岸通道', d_coast:'夹在两片海之间的狭长陆地',
  log_start:'战斗开始：攻陷敌方本营。',
  log_income:'{side}收入 +{inc}（资金 {coins}）',
  log_undo:'已撤销一步',
@@ -522,101 +524,108 @@ function detectLang(){
 }
 
 /* ================= ステージ ================= */
-var SPAWN_TYPES=['ho','ho','ya','yu','ho','ki'];
 var STAGES=[
-  {key:'skirmish', rand:true},
-  {key:'bridge',   half:["....B....","..v...v..",".f.ooo.f.","..f...f..","~~v.~.v~~"]},
-  {key:'maze',     half:["....B....","..o...o..","....o....","..f...f..","v..f.f..v"]},
-  {key:'pass',     half:["....B....","..m...m..",".oommmmo.","..f...f..","mm..v..mm"]},
-  {key:'granary',  half:["....B....",".v.....v.","..o.o.o..","...v.v...","....v...."], cap:10},
-  {key:'canyon',   half:["....B....","..v...v..",".o..o..o.","m..mmm..m","....f...."], cap:6},
-  {key:'coast',    half:[".B.......",".oo...v..",".o.f..v..","..~~..~~.",".f..v..f."], baseHp:40}
+  {key:'skirmish', size:9, rand:true},
+  {key:'bridge',   size:11},
+  {key:'maze',     size:13},
+  {key:'pass',     size:15},
+  {key:'granary',  size:17, cap:10},
+  {key:'canyon',   size:19},
+  {key:'coast',    size:21, baseHp:40}
 ];
 function stageDef(id){ for(var i=0;i<STAGES.length;i++){ if(STAGES[i].key===id) return STAGES[i]; } return null; }
 function stageIndex(id){ for(var i=0;i<STAGES.length;i++){ if(STAGES[i].key===id) return i; } return 0; }
 function stageUnlocked(i){ if(i<=0) return true; return !!PROF.cleared[STAGES[i-1].key]; }
 
-var DEF_BASE={p:{x:4,y:8},e:{x:4,y:0}};
-var DEF_SPAWN={p:[{x:3,y:6,t:'ho'},{x:5,y:6,t:'ho'},{x:4,y:6,t:'ya'}],
-               e:[{x:3,y:2,t:'ho'},{x:5,y:2,t:'ho'},{x:4,y:2,t:'ya'}]};
 var BASE_HP_DEF=48;
 var DIR8=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,1],[1,-1],[-1,-1]];
 
-function copySpawns(list){
-  var out=[];
-  for(var i=0;i<list.length;i++) out.push({x:list[i].x,y:list[i].y,t:list[i].t});
-  return out;
-}
-// 盤面・本営位置・初期配置・本営HP・兵数上限を作る（大域変数はここで更新する）
+// 固定マップは中央の9x9を保ち、追加エリアを側面・前後の進軍路として使う。
 function buildStage(def){
   def=def||STAGES[0];
+  COLS=def.size||9;
+  ROWS=def.size||9;
   BASE_HP=def.baseHp||BASE_HP_DEF;
   UNIT_CAP=def.cap||8;
-  var tiles=[],i,x,y;
-  if(def.rand){
-    BASE_POS={p:{x:DEF_BASE.p.x,y:DEF_BASE.p.y},e:{x:DEF_BASE.e.x,y:DEF_BASE.e.y}};
-    SPAWN={p:copySpawns(DEF_SPAWN.p),e:copySpawns(DEF_SPAWN.e)};
-    return genMap();
-  }
-  for(y=0;y<ROWS;y++){ tiles.push([]); for(x=0;x<COLS;x++) tiles[y].push({t:'plain',owner:null}); }
-  var baseP=null, baseE=null, marks=[];
-  for(y=0;y<5;y++){
-    var row=def.half[y]||'';
-    for(x=0;x<COLS;x++){
-      var c=row.charAt(x)||'.';
-      var terr=(c==='f')?'forest':((c==='m')?'mountain':((c==='~')?'water':((c==='v')?'village':'plain')));
-      tiles[y][x].t=terr; tiles[ROWS-1-y][x].t=terr;      // 上側だけ作り、下側は鏡像
-      if(y<4){
-        if(c==='B'){ baseE={x:x,y:y}; baseP={x:x,y:ROWS-1-y}; }
-        else if(c==='o'||c==='p'||c==='e'){ marks.push({x:x,y:y}); }
-      }
+  var n=COLS, c=n-1, i, x, y;
+  var tiles=[];
+  for(y=0;y<n;y++){ tiles.push([]); for(x=0;x<n;x++) tiles[y].push({t:'plain',owner:null}); }
+  // 固定ステージは毎回同じ地形にするため固定シード、ランダム戦は毎回変える
+  var seed=0; for(i=0;i<def.key.length;i++) seed=(seed*31+def.key.charCodeAt(i))>>>0;
+  var rnd=def.rand?Math.random:(function(){ var s=seed||1; return function(){ s=(Math.imul(s,1664525)+1013904223)>>>0; return s/4294967296; }; })();
+  // 半分だけ生成して180度回転で写す（公平な盤面）
+  for(y=0;y<n;y++){
+    for(x=0;x<n;x++){
+      if(y*n+x>(n*n-1)/2) continue;
+      var tt=terrainAt(def.key,x,y,n,rnd);
+      tiles[y][x].t=tt; tiles[c-y][c-x].t=tt;
     }
   }
-  if(!baseE){ baseE={x:4,y:0}; baseP={x:4,y:ROWS-1}; }
-  BASE_POS={p:baseP,e:baseE};
-  tiles[baseE.y][baseE.x].t='base'; tiles[baseE.y][baseE.x].owner=E;
-  tiles[baseP.y][baseP.x].t='base'; tiles[baseP.y][baseP.x].owner=P;
-  // 本営の8近傍は徴兵と進軍のため整地する（村は残す）
-  for(i=0;i<DIR8.length;i++){
-    var sides=[baseE,baseP];
-    for(var k=0;k<2;k++){
-      var nx=sides[k].x+DIR8[i][0], ny=sides[k].y+DIR8[i][1];
-      if(nx<0||ny<0||nx>=COLS||ny>=ROWS) continue;
-      var tt=tiles[ny][nx];
-      if(tt.t==='village'||tt.t==='base') continue;
-      tt.t='plain';
+  // 本営は左下(P)と右上(E)。隅には置かない
+  var m=Math.max(2,Math.round(c*0.18));
+  BASE_POS={p:{x:m,y:c-m},e:{x:c-m,y:m}};
+  var sides=[BASE_POS.p,BASE_POS.e], k;
+  for(k=0;k<2;k++){
+    var b=sides[k];
+    for(y=b.y-2;y<=b.y+2;y++) for(x=b.x-2;x<=b.x+2;x++){
+      if(x<0||y<0||x>=n||y>=n) continue;
+      if(tiles[y][x].t!=='village') tiles[y][x].t='plain';
     }
   }
-  marks.sort(function(a,b){ return (a.y-b.y)||(a.x-b.x); });
+  tiles[BASE_POS.p.y][BASE_POS.p.x].t='base'; tiles[BASE_POS.p.y][BASE_POS.p.x].owner=P;
+  tiles[BASE_POS.e.y][BASE_POS.e.x].t='base'; tiles[BASE_POS.e.y][BASE_POS.e.x].owner=E;
+  // 初期配置は本営の右上（敵方向）。敵側は180度回転
+  var off=[[1,-2,'ho'],[2,-1,'ho'],[1,-1,'ya']];
   SPAWN={p:[],e:[]};
-  for(i=0;i<marks.length;i++){
-    var ty=SPAWN_TYPES[i%SPAWN_TYPES.length];
-    SPAWN.e.push({x:marks[i].x,y:marks[i].y,t:ty});
-    SPAWN.p.push({x:marks[i].x,y:ROWS-1-marks[i].y,t:ty});
-  }
-  if(!SPAWN.p.length){          // マーカーが無いステージは本営の正面に配置
-    for(var s2=0;s2<2;s2++){
-      var side=s2===0?P:E, dy=(side===P)?-1:1;
-      for(var q=0;q<3;q++){
-        var bx=BASE_POS[side].x+(q-1), by=BASE_POS[side].y+dy;
-        if(bx<0||bx>=COLS||by<0||by>=ROWS) continue;
-        var tb=tiles[by][bx];
-        if(tb.t==='water'||tb.t==='base') continue;
-        tb.t='plain';
-        SPAWN[side].push({x:bx,y:by,t:SPAWN_TYPES[q]});
-      }
-    }
-  }
-  // 初期配置マスは必ずその兵が置ける地形にする
-  var ps=[P,E];
-  for(var m=0;m<2;m++){
-    var list=SPAWN[ps[m]];
-    for(i=0;i<list.length;i++){
-      var sp=list[i], tl=tiles[sp.y][sp.x];
-      if(tl.t==='water'||tl.t==='base'||(tl.t==='mountain'&&TYPES[sp.t].noMountain)) tl.t='plain';
-    }
+  for(i=0;i<off.length;i++){
+    var px=BASE_POS.p.x+off[i][0], py=BASE_POS.p.y+off[i][1];
+    SPAWN.p.push({x:px,y:py,t:off[i][2]});
+    SPAWN.e.push({x:c-px,y:c-py,t:off[i][2]});
   }
   return tiles;
+}
+
+// ステージ名に合わせた地形。d=x-y（左上-右下の斜め軸）、q=x+y-c（本営を結ぶ軸との距離）
+function terrainAt(key,x,y,n,rnd){
+  var c=n-1, d=x-y, q=x+y-c, ad=Math.abs(d), aq=Math.abs(q), r=rnd();
+  switch(key){
+  case 'bridge': {                       // 川を渡る橋の戦い
+    var k=Math.round(n*0.28), onBridge=Math.abs(aq-k)<=1;
+    if(ad<=1) return onBridge?'plain':'water';
+    if(ad===2&&onBridge) return 'plain';
+    if(ad===3&&aq===k) return 'village';
+    return r<0.12?'forest':(r<0.15?'mountain':'plain');
+  }
+  case 'maze': {                         // 迷いの森
+    if(x%3===0&&y%3===0) return r<0.3?'village':'plain';
+    if(x%3===0||y%3===0) return r<0.15?'forest':'plain';
+    return r<0.72?'forest':(r<0.8?'mountain':'plain');
+  }
+  case 'pass': {                         // 山の隘路
+    if(ad<=2) return aq<=3?'plain':'mountain';
+    if(ad===3) return r<0.5?'mountain':'forest';
+    if(ad===4&&aq<=3&&r<0.5) return 'village';
+    return r<0.1?'forest':'plain';
+  }
+  case 'granary': {                      // 穀倉地帯
+    if(x%4===2&&y%4===2) return 'village';
+    return r<0.07?'forest':'plain';
+  }
+  case 'canyon': {                       // 峡谷
+    if(aq<=6){ return (aq===4&&d%6===0)?'village':(r<0.08?'mountain':(r<0.14?'forest':'plain')); }
+    if(aq<=9) return r<0.25?'plain':'mountain';
+    return r<0.15?'forest':'plain';
+  }
+  case 'coast': {                        // 海岸線
+    var shore=Math.round(c*0.4)+((x*7+y*3)%3);
+    if(x+y<shore) return 'water';
+    if(x+y===shore+2&&d%4===0) return 'village';
+    if(aq<=3&&aq>=2&&d%8===0) return 'village';
+    return r<0.1?'forest':(r<0.13?'mountain':'plain');
+  }
+  default:                               // skirmish：ランダム
+    return r<0.05?'village':(r<0.2?'forest':(r<0.3?'mountain':(r<0.37?'water':'plain')));
+  }
 }
 
 /* ================= ローカル保存 ================= */
@@ -644,7 +653,7 @@ function loadProfile(){
 function saveProfile(){ lsSet(LS_P,JSON.stringify(PROF)); }
 function saveGame(silent){
   if(!S||S.over) return false;
-  var blob={v:1,lang:LANG,stage:S.stage,diff:S.diff,turn:S.turn,phase:S.phase,nextId:S.nextId,over:S.over,
+  var blob={v:1,cols:COLS,rows:ROWS,lang:LANG,stage:S.stage,diff:S.diff,turn:S.turn,phase:S.phase,nextId:S.nextId,over:S.over,
             coins:S.coins,baseHp:S.baseHp,units:S.units,tiles:S.tiles,log:S.log,ts:Date.now()};
   var ok=lsSet(LS_G,JSON.stringify(blob));
   if(ok&&!silent) flashSaved();
@@ -663,6 +672,11 @@ function loadSave(){
 function resumeSave(d){
   if(!d) return false;
   buildStage(stageDef(d.stage));                 // 大域値をステージに合わせる
+  var savedRows=d.rows||d.tiles.length,savedCols=d.cols||(d.tiles[0]&&d.tiles[0].length);
+  if(!Number.isInteger(savedRows)||!Number.isInteger(savedCols)||savedRows<1||savedCols<1||
+     d.tiles.length!==savedRows||d.tiles.some(function(row){ return !row||row.length!==savedCols; })) return false;
+  ROWS=savedRows; COLS=savedCols;
+  d.tiles.forEach(function(row,yy){ row.forEach(function(tl,xx){ if(tl&&tl.t==='base'&&(tl.owner===P||tl.owner===E)) BASE_POS[tl.owner]={x:xx,y:yy}; }); });
   S={diff:(d.diff==='easy'||d.diff==='hard')?d.diff:'normal', stage:d.stage,
      turn:d.turn||1, phase:P,
      coins:{p:d.coins.p|0,e:d.coins.e|0}, baseHp:{p:d.baseHp.p,e:d.baseHp.e},
@@ -709,6 +723,34 @@ var TYPES={
   ki:{key:'ki',name:'騎兵',glyph:'騎',cost:5,move:4,range:1,atk:9,hp:26,noMountain:true},
   ya:{key:'ya',name:'槍兵',glyph:'槍',cost:4,move:3,range:1,atk:8,hp:34}
 };
+var SPR_ART={
+  ho:["....oooo....","...occcco...","...olccco...","...osssso...","....osso..m.",".ooocccco.m.","oddoccccogmo","oddoccccoo..",".oo.occco...","....oo.oo...","....oo.oo...","...ooo.ooo.."],
+  yu:["....oooo....","...occcco.ww","...olccco.wk","...osssso.w.","....osso.wsk","..occccoowk.",".oscccccowk.",".oocccccoow.","..occddco.ww","...oddddo...","....oo.oo...","...ooo.ooo.."],
+  ki:["......oooo..",".....occco.m",".....osso..m","....occcc..m","...occccc.om",".ooccchhhhoo","ohhhhhhhhhho","ohhhhhhhhho.",".ohh.oo.ohh.",".oh..o..oh..",".oo..oo.oo..","............"],
+  ya:["..........m.","..........w.","....oooo..w.","...occcco.w.","...olccco.w.","...osssso.w.","..occccco.w.",".oddccccdow.",".oddccccdow.","..odddddoow.","....oo.oo.w.","...ooo.ooow."]
+};
+var SPR_PAL={o:'#1a1420',s:'#f1c8a0',m:'#d3dae3',w:'#8b5a2b',h:'#8a5a35',k:'#3a2a22',g:'#f2c14e'};
+var SPR_TEAM={p:{c:'#3b82c4',d:'#1f4f85',l:'#7bbcf0'},e:{c:'#c24545',d:'#7a2222',l:'#f08a7a'}};
+var SPR_CACHE={};
+function spriteUri(type,side){
+  var key=type+side;
+  if(SPR_CACHE[key]) return SPR_CACHE[key];
+  var art=SPR_ART[type], team=SPR_TEAM[side], rects='', y, x;
+  for(y=0;y<art.length;y++){
+    var row=art[y];
+    x=0;
+    while(x<row.length){
+      var ch=row.charAt(x);
+      if(ch==='.'){ x++; continue; }
+      var x2=x; while(x2<row.length&&row.charAt(x2)===ch) x2++;
+      rects+='<rect x="'+x+'" y="'+y+'" width="'+(x2-x)+'" height="1" fill="'+(SPR_PAL[ch]||team[ch])+'"/>';
+      x=x2;
+    }
+  }
+  var svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 12" shape-rendering="crispEdges">'+rects+'</svg>';
+  SPR_CACHE[key]='data:image/svg+xml,'+encodeURIComponent(svg);
+  return SPR_CACHE[key];
+}
 var CNT={
   ho:{ho:1.00,yu:1.00,ki:0.75,ya:0.85},
   yu:{ho:1.25,yu:1.00,ki:0.80,ya:0.85},
@@ -836,55 +878,7 @@ function fx(x,y,text){
   fxTimer=setTimeout(function(){ fxTimer=null; if(S){ S.fx=null; } },720);
 }
 
-/* ================= 盤面生成 ================= */
-function genMap(){
-  var t=[],x,y,i;
-  for(y=0;y<ROWS;y++){ t.push([]); for(x=0;x<COLS;x++) t[y].push({t:'plain',owner:null}); }
-  for(y=0;y<4;y++){
-    for(x=0;x<COLS;x++){
-      var r=Math.random();
-      t[y][x].t = r<0.17?'forest' : (r<0.27?'mountain' : (r<0.34?'water':'plain'));
-    }
-  }
-  for(x=0;x<5;x++){
-    var q=Math.random();
-    var mid = q<0.14?'forest' : (q<0.22?'water':'plain');
-    t[4][x].t=mid; t[4][COLS-1-x].t=mid;
-  }
-  for(y=0;y<4;y++) for(x=0;x<COLS;x++) t[ROWS-1-y][x].t=t[y][x].t;
 
-  // 村: 上下対称に3組 + 中央帯に中立2つ
-  var used={}, placed=0, tries=0;
-  while(placed<3 && tries++<200){
-    var vx=ri(COLS), vy=1+ri(3);
-    var k=vx+','+vy;
-    if(used[k]) continue;
-    if(t[vy][vx].t!=='plain') continue;
-    used[k]=1; t[vy][vx].t='village'; t[ROWS-1-vy][vx].t='village'; placed++;
-  }
-  var cand=[1,3,5,7];
-  cand.sort(function(){ return Math.random()-0.5; });
-  for(i=0;i<2;i++){ var cx=cand[i]; if(t[4][cx].t==='plain') t[4][cx].t='village'; }
-
-  // 本営と周辺を整地（上下で対称になる方向セットを使う）
-  [P,E].forEach(function(s){
-    var b=BASE_POS[s];
-    t[b.y][b.x].t='base'; t[b.y][b.x].owner=s;
-    [[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,1],[1,-1],[-1,-1]].forEach(function(d){
-      var nx=b.x+d[0], ny=b.y+d[1];
-      if(nx<0||ny<0||nx>=COLS||ny>=ROWS) return;
-      if(t[ny][nx].t==='village'||t[ny][nx].t==='base') return;
-      t[ny][nx].t='plain';
-    });
-  });
-  // 初期配置マスは必ず通行可能にする（SPAWN が唯一の定義）
-  [P,E].forEach(function(s){
-    SPAWN[s].forEach(function(sp){
-      if(t[sp.y][sp.x].t==='water'||t[sp.y][sp.x].t==='mountain') t[sp.y][sp.x].t='plain';
-    });
-  });
-  return t;
-}
 
 /* ================= ゲームフロー ================= */
 function newGame(diff,stageId){
@@ -906,6 +900,7 @@ function newGame(diff,stageId){
   logLine('log_start');
   applyIncome(P,true);
   render();
+  fit();
   saveGame(true);
 }
 
@@ -1255,7 +1250,7 @@ function advanceScore(u,x,y,points){
   var b=BASE_POS[other(u.side)];
   var man=Math.abs(b.x-x)+Math.abs(b.y-y);
   var dp=baseCostMap(u.side,u.type)[y][x];
-  var db=isFinite(dp)?Math.min(14,dp):man;
+  var db=isFinite(dp)?Math.min(COLS*3,dp):man;
   var urg=S.turn>24?1+Math.min(1,(S.turn-24)*0.05):1;   // 長引くほど本営を目指す
   var du=Infinity;
   for(var i=0;i<points.length;i++){
@@ -1434,6 +1429,7 @@ function buildBoard(){
       UI.cells.push(el);
     }
   }
+  UI.cols=COLS; UI.rows=ROWS;
 }
 function hlKeySet(){
   var mv={},hit={};
@@ -1464,7 +1460,7 @@ function selectedUnit(){
 function render(){
   if(!S) return;
   var b=document.getElementById('board');
-  if(!UI.cells.length) buildBoard();
+  if(!UI.cells.length||UI.cols!==COLS||UI.rows!==ROWS) buildBoard();
   var hl=hlKeySet();
   var su=selectedUnit();
   for(var y=0;y<ROWS;y++){
@@ -1481,7 +1477,7 @@ function render(){
       var u=unitAt(x,y);
       if(u){
         var T=TYPES[u.type], pct=Math.max(0,Math.round(u.hp/T.hp*100));
-        html+='<div class="chip '+u.side+(u.acted?' spent':'')+'" title="'+uname(u.type)+'"><span>'+uglyph(u.type)+'</span>'+
+        html+='<div class="chip '+u.side+(u.acted?' spent':'')+'" title="'+uname(u.type)+'"><img class="spr" alt="" draggable="false" src="'+spriteUri(u.type,u.side)+'">'+
              '<i class="hpb"><b class="'+(pct<=40?'low':'')+'" style="width:'+pct+'%"></b></i></div>';
       }
       if(S.fx&&S.fx.x===x&&S.fx.y===y) html+='<div class="fx">'+S.fx.text+'</div>';
@@ -1658,7 +1654,7 @@ function renderStages(){
     if(cur) right=t('now');
     html+='<button class="stcard'+(cur?' cur':'')+'" data-k="'+st.key+'"'+(lock?' disabled':'')+'>'+
       '<span class="num">'+(i+1)+'</span><span class="txt"><span class="nm">'+stageName(st.key)+
-      '</span><span class="ds">'+t('d_'+st.key)+'</span></span><span class="bd">'+right+'</span></button>';
+        '</span><span class="ds">'+t('d_'+st.key)+'</span></span><span class="sz">'+st.size+' × '+st.size+'</span><span class="bd">'+right+'</span></button>';
   }
   box.innerHTML=html;
   var bs=box.querySelectorAll?box.querySelectorAll('button'):[];
